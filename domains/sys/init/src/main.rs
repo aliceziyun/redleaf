@@ -207,18 +207,19 @@ pub fn trusted_entry(
     );
     println!("created proxy");
 
-    #[cfg(feature = "test_cd")]
-    {
+    // #[cfg(feature = "test_cd")]
+    // {
         #[cfg(not(feature = "shadow"))]
         let (dom_dom_c, dom_c) = proxy.as_domain_create_CreateDomC().create_domain_dom_c();
         #[cfg(feature = "shadow")]
+        println!("Start test_cd!");
         let (dom_shadow, dom_c) = proxy
             .as_domain_create_CreateShadow()
             .create_domain_shadow(proxy.as_domain_create_CreateDomC());
         let dom_dom_d = proxy
             .as_domain_create_CreateDomD()
             .create_domain_dom_d(dom_c);
-    }
+    // }
 
     #[cfg(feature = "tpm")]
     let (_dom_tpm, usr_tpm) = proxy.as_domain_create_CreateTpm().create_domain_tpm();
@@ -296,30 +297,32 @@ pub fn trusted_entry(
         .as_domain_create_CreateBenchnvme()
         .create_domain_benchnvme(nvme);
 
-    #[cfg(not(any(feature = "benchnet", feature = "benchnvme")))]
-    {
-        println!("Starting xv6 kernel");
-        let (_dom_xv6, rv6) = proxy.as_domain_create_CreateRv6().create_domain_xv6kernel(
-            ints_clone,
-            proxy.as_domain_create_CreateRv6FS(),
-            proxy.as_domain_create_CreateRv6Net(),
-            proxy.as_domain_create_CreateRv6NetShadow(),
-            proxy.as_domain_create_CreateRv6Usr(),
-            bdev,
-            net,
-            nvme,
-            usr_tpm,
-        );
-        println!("Starting xv6 user init");
-        rv6.sys_spawn_domain(
-            rv6.clone_rv6().unwrap(),
-            RRefVec::from_slice("/init".as_bytes()),
-            RRefVec::from_slice("/init".as_bytes()),
-            array_init::array_init(|_| None),
-        )
-        .unwrap()
-        .unwrap();
-    }
+    println!("I'm at the end!");
+
+    // #[cfg(not(any(feature = "benchnet", feature = "benchnvme")))]
+    // {
+    //     println!("Starting xv6 kernel");
+    //     let (_dom_xv6, rv6) = proxy.as_domain_create_CreateRv6().create_domain_xv6kernel(
+    //         ints_clone,
+    //         proxy.as_domain_create_CreateRv6FS(),
+    //         proxy.as_domain_create_CreateRv6Net(),
+    //         proxy.as_domain_create_CreateRv6NetShadow(),
+    //         proxy.as_domain_create_CreateRv6Usr(),
+    //         bdev,
+    //         net,
+    //         nvme,
+    //         usr_tpm,
+    //     );
+    //     println!("Starting xv6 user init");
+    //     rv6.sys_spawn_domain(
+    //         rv6.clone_rv6().unwrap(),
+    //         RRefVec::from_slice("/init".as_bytes()),
+    //         RRefVec::from_slice("/init".as_bytes()),
+    //         array_init::array_init(|_| None),
+    //     )
+    //     .unwrap()
+    //     .unwrap();
+    // }
 }
 
 // This function is called on panic.

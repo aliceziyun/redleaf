@@ -33,4 +33,3 @@ pub trait YourInterface {
 1. Update the entry point and the instantiation of the proxy domain of `redleaf_init` in 
     _domains/sys/init/src/main.rs:trusted\_entry_. Make sure the signature of the entry point is
     the same as the one _kernel/src/generated\_domain\_create.rs:create\_domain\_init_
-

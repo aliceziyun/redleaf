@@ -15,11 +15,33 @@ use interface::rref::RRef;
 
 use interface::rpc::RpcResult;
 
-struct DomC {}
+use core::cell::RefCell;
+
+use interface::rref::traits::TypeIdentifiable;
+
+impl TypeIdentifiable for MyIM {
+    fn type_id() -> u64 {
+        111111111
+    }
+}
+
+// for interior mutability test
+struct MyIM {
+    size: RefCell<usize>
+}
+
+struct DomC {
+    // create a RRef object for test
+    ref_object: RRef<MyIM>
+}
 
 impl DomC {
     fn new() -> Self {
-        Self {}
+        Self {
+            ref_object: RRef::new(MyIM {
+                size: RefCell::new(0usize),
+            }),
+        }
     }
 }
 
@@ -44,6 +66,11 @@ impl interface::dom_c::DomC for DomC {
 
     fn init_dom_c(&self, c: Box<dyn interface::dom_c::DomC>) -> RpcResult<()> {
         Ok(())
+    }
+
+    // Test RRef with smart pointer
+    fn test_rref_with_smart_pointer(&self) {
+
     }
 }
 

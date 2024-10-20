@@ -83,6 +83,8 @@ impl interface::dom_c::DomC for Shadow {
     fn init_dom_c(&self, c: Box<dyn interface::dom_c::DomC>) -> RpcResult<()> {
         self.dom.lock().dom_c.init_dom_c(c)
     }
+
+    fn test_rref_with_smart_pointer(&self){}
 }
 
 pub fn main(
