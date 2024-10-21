@@ -13,6 +13,8 @@ use core::panic::PanicInfo;
 
 use interface::rref::RRef;
 
+use core::cell::RefCell;
+
 pub fn main(dom_c: Box<dyn interface::dom_c::DomC>) {
     println!("Init domain D");
 
@@ -56,6 +58,13 @@ pub fn main(dom_c: Box<dyn interface::dom_c::DomC>) {
         iter
     );
     assert!(*dom_c.one_rref(x).unwrap() == iter + 1);
+
+    println!("start interior mutability test");
+    let test_im = RRef::new(RefCell::new(0usize));
+    dom_c.test_rref_with_smart_pointer(&test_im);
+    let im = &*test_im;
+    let value = im.borrow();
+    println!("RefCell value: {}", value);
 }
 
 // This function is called on panic.

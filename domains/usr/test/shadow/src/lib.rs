@@ -16,6 +16,8 @@ use interface::rref::RRef;
 use interface::rpc::RpcResult;
 use spin::Mutex;
 
+use core::cell::RefCell;
+
 struct ShadowDomain {
     dom: Option<Box<dyn syscalls::Domain>>,
     dom_c: Box<dyn interface::dom_c::DomC>,
@@ -84,7 +86,8 @@ impl interface::dom_c::DomC for Shadow {
         self.dom.lock().dom_c.init_dom_c(c)
     }
 
-    fn test_rref_with_smart_pointer(&self){}
+    fn test_rref_with_smart_pointer(&self, size: &RRef<RefCell<usize>>){
+    }
 }
 
 pub fn main(

@@ -19,30 +19,10 @@ use core::cell::RefCell;
 
 use interface::rref::traits::TypeIdentifiable;
 
-impl TypeIdentifiable for MyIM {
-    fn type_id() -> u64 {
-        111111111
-    }
-}
-
-// for interior mutability test
-struct MyIM {
-    size: RefCell<usize>
-}
-
-struct DomC {
-    // create a RRef object for test
-    ref_object: RRef<MyIM>
-}
+struct DomC {}
 
 impl DomC {
-    fn new() -> Self {
-        Self {
-            ref_object: RRef::new(MyIM {
-                size: RefCell::new(0usize),
-            }),
-        }
-    }
+    fn new() -> Self {Self{}}
 }
 
 impl interface::dom_c::DomC for DomC {
@@ -69,8 +49,12 @@ impl interface::dom_c::DomC for DomC {
     }
 
     // Test RRef with smart pointer
-    fn test_rref_with_smart_pointer(&self) {
-
+    fn test_rref_with_smart_pointer(&self, size: &RRef<RefCell<usize>>){
+        let rc_size = &**size;
+        {
+            let mut value = rc_size.borrow_mut();
+            *value += 10;
+        }
     }
 }
 
