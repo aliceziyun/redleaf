@@ -49,12 +49,14 @@ impl interface::dom_c::DomC for DomC {
     }
 
     // Test RRef with smart pointer
-    fn test_rref_with_smart_pointer(&self, size: &RRef<RefCell<usize>>){
+    fn test_rref_with_smart_pointer(&self, size: &RRef<RefCell<usize>>) -> RpcResult<()> {
         let rc_size = &**size;
         {
             let mut value = rc_size.borrow_mut();
+            println!("change the interior mutable variable");
             *value += 10;
         }
+        Ok(())
     }
 }
 

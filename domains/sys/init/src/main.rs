@@ -221,81 +221,83 @@ pub fn trusted_entry(
             .create_domain_dom_d(dom_c);
     // }
 
-    #[cfg(feature = "tpm")]
-    let (_dom_tpm, usr_tpm) = proxy.as_domain_create_CreateTpm().create_domain_tpm();
+    // we don't need the rest part in im test
 
-    #[cfg(feature = "hashbench")]
-    let dom_hashstore = proxy
-        .as_domain_create_CreateSashstore()
-        .create_domain_hashstore();
+    // #[cfg(feature = "tpm")]
+    // let (_dom_tpm, usr_tpm) = proxy.as_domain_create_CreateTpm().create_domain_tpm();
 
-    println!("Creating pci");
-    let (_dom_pci, pci) = proxy.as_domain_create_CreatePCI().create_domain_pci();
+    // #[cfg(feature = "hashbench")]
+    // let dom_hashstore = proxy
+    //     .as_domain_create_CreateSashstore()
+    //     .create_domain_hashstore();
 
-    #[cfg(feature = "virtio_net")]
-    let (_, net) = proxy
-        .as_domain_create_CreateVirtioNet()
-        .create_domain_virtio_net(pci.pci_clone().unwrap());
-    #[cfg(all(not(feature = "shadow"), not(feature = "virtnet")))]
-    let (_, net) = proxy.as_create_ixgbe().create_domain_ixgbe(pci.pci_clone());
-    #[cfg(all(feature = "shadow", not(feature = "virtio_net")))]
-    let (_, net) = proxy
-        .as_create_net_shadow()
-        .create_domain_net_shadow(proxy.as_create_ixgbe(), pci.pci_clone());
+    // println!("Creating pci");
+    // let (_dom_pci, pci) = proxy.as_domain_create_CreatePCI().create_domain_pci();
 
-    #[cfg(not(feature = "membdev"))]
-    let (dom_ahci, bdev) = proxy.as_create_ahci().create_domain_ahci(pci.pci_clone());
+    // #[cfg(feature = "virtio_net")]
+    // let (_, net) = proxy
+    //     .as_domain_create_CreateVirtioNet()
+    //     .create_domain_virtio_net(pci.pci_clone().unwrap());
+    // #[cfg(all(not(feature = "shadow"), not(feature = "virtnet")))]
+    // let (_, net) = proxy.as_create_ixgbe().create_domain_ixgbe(pci.pci_clone());
+    // #[cfg(all(feature = "shadow", not(feature = "virtio_net")))]
+    // let (_, net) = proxy
+    //     .as_create_net_shadow()
+    //     .create_domain_net_shadow(proxy.as_create_ixgbe(), pci.pci_clone());
 
-    #[cfg(feature = "membdev")]
-    #[cfg(not(feature = "shadow"))]
-    // Memfs is linked with the shadow domain so membdev doesn't work without shadow currently.
-    let (dom_ahci, bdev) = proxy
-        .as_domain_create_CreateMemBDev()
-        .create_domain_membdev(&mut []);
-    #[cfg(feature = "membdev")]
-    #[cfg(feature = "shadow")]
-    let (_dom_ahci, bdev) = proxy
-        .as_domain_create_CreateBDevShadow()
-        .create_domain_bdev_shadow(proxy.as_domain_create_CreateMemBDev());
+    // #[cfg(not(feature = "membdev"))]
+    // let (dom_ahci, bdev) = proxy.as_create_ahci().create_domain_ahci(pci.pci_clone());
 
-    println!("Creating nvme domain!");
-    #[cfg(not(feature = "shadow"))]
-    let (dom_nvme, nvme) = proxy
-        .as_domain_create_CreateNvme()
-        .create_domain_nvme(pci.pci_clone().unwrap());
-    #[cfg(feature = "shadow")]
-    let (_dom_nvme, nvme) = proxy
-        .as_domain_create_CreateNvmeShadow()
-        .create_domain_nvme_shadow(
-            proxy.as_domain_create_CreateNvme(),
-            pci.pci_clone().unwrap(),
-        );
+    // #[cfg(feature = "membdev")]
+    // #[cfg(not(feature = "shadow"))]
+    // // Memfs is linked with the shadow domain so membdev doesn't work without shadow currently.
+    // let (dom_ahci, bdev) = proxy
+    //     .as_domain_create_CreateMemBDev()
+    //     .create_domain_membdev(&mut []);
+    // #[cfg(feature = "membdev")]
+    // #[cfg(feature = "shadow")]
+    // let (_dom_ahci, bdev) = proxy
+    //     .as_domain_create_CreateBDevShadow()
+    //     .create_domain_bdev_shadow(proxy.as_domain_create_CreateMemBDev());
 
-    println!("Creating ixgbe");
-    #[cfg(not(feature = "shadow"))]
-    let (dom_ixgbe, net) = proxy
-        .as_domain_create_CreateIxgbe()
-        .create_domain_ixgbe(pci.pci_clone().unwrap());
-    #[cfg(feature = "shadow")]
-    let (_dom_ixgbe, net) = proxy
-        .as_domain_create_CreateNetShadow()
-        .create_domain_net_shadow(
-            proxy.as_domain_create_CreateIxgbe(),
-            pci.pci_clone().unwrap(),
-        );
+    // println!("Creating nvme domain!");
+    // #[cfg(not(feature = "shadow"))]
+    // let (dom_nvme, nvme) = proxy
+    //     .as_domain_create_CreateNvme()
+    //     .create_domain_nvme(pci.pci_clone().unwrap());
+    // #[cfg(feature = "shadow")]
+    // let (_dom_nvme, nvme) = proxy
+    //     .as_domain_create_CreateNvmeShadow()
+    //     .create_domain_nvme_shadow(
+    //         proxy.as_domain_create_CreateNvme(),
+    //         pci.pci_clone().unwrap(),
+    //     );
 
-    #[cfg(feature = "benchnet")]
-    let _ = proxy.as_create_benchnet().create_domain_benchnet(net);
+    // println!("Creating ixgbe");
+    // #[cfg(not(feature = "shadow"))]
+    // let (dom_ixgbe, net) = proxy
+    //     .as_domain_create_CreateIxgbe()
+    //     .create_domain_ixgbe(pci.pci_clone().unwrap());
+    // #[cfg(feature = "shadow")]
+    // let (_dom_ixgbe, net) = proxy
+    //     .as_domain_create_CreateNetShadow()
+    //     .create_domain_net_shadow(
+    //         proxy.as_domain_create_CreateIxgbe(),
+    //         pci.pci_clone().unwrap(),
+    //     );
 
-    #[cfg(feature = "virtio_block")]
-    let (_, virtio_block) = proxy
-        .as_domain_create_CreateVirtioBlock()
-        .create_domain_virtio_block(pci.pci_clone().unwrap());
+    // #[cfg(feature = "benchnet")]
+    // let _ = proxy.as_create_benchnet().create_domain_benchnet(net);
 
-    #[cfg(feature = "benchnvme")]
-    let _ = proxy
-        .as_domain_create_CreateBenchnvme()
-        .create_domain_benchnvme(nvme);
+    // #[cfg(feature = "virtio_block")]
+    // let (_, virtio_block) = proxy
+    //     .as_domain_create_CreateVirtioBlock()
+    //     .create_domain_virtio_block(pci.pci_clone().unwrap());
+
+    // #[cfg(feature = "benchnvme")]
+    // let _ = proxy
+    //     .as_domain_create_CreateBenchnvme()
+    //     .create_domain_benchnvme(nvme);
 
     println!("I'm at the end!");
 

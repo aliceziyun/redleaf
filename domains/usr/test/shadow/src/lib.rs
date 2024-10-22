@@ -86,7 +86,8 @@ impl interface::dom_c::DomC for Shadow {
         self.dom.lock().dom_c.init_dom_c(c)
     }
 
-    fn test_rref_with_smart_pointer(&self, size: &RRef<RefCell<usize>>){
+    fn test_rref_with_smart_pointer(&self, size: &RRef<RefCell<usize>>) -> RpcResult<()>{
+        self.dom.lock().dom_c.test_rref_with_smart_pointer(size)
     }
 }
 
