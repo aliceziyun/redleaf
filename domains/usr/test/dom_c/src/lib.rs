@@ -49,14 +49,15 @@ impl interface::dom_c::DomC for DomC {
     }
 
     // Test RRef with smart pointer
-    fn test_rref_with_smart_pointer(&self, size: &RRef<RefCell<usize>>) -> RpcResult<()> {
+    fn test_rref_with_smart_pointer(&self, size: &RRef<RefCell<usize>>){
         let rc_size = &**size;
         {
             let mut value = rc_size.borrow_mut();
-            println!("change the interior mutable variable");
+            println!("[C] change the interior mutable variable");
+            println!("[C] current thread id is: {}", libsyscalls::syscalls::sys_current_thread_id());
             *value += 10;
         }
-        Ok(())
+        // Ok(())
     }
 }
 

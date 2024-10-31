@@ -209,13 +209,8 @@ pub fn trusted_entry(
 
     // #[cfg(feature = "test_cd")]
     // {
-        #[cfg(not(feature = "shadow"))]
-        let (dom_dom_c, dom_c) = proxy.as_domain_create_CreateDomC().create_domain_dom_c();
-        #[cfg(feature = "shadow")]
         println!("Start test_cd!");
-        let (dom_shadow, dom_c) = proxy
-            .as_domain_create_CreateShadow()
-            .create_domain_shadow(proxy.as_domain_create_CreateDomC());
+        let (dom_dom_c, dom_c) = proxy.as_domain_create_CreateDomC().create_domain_dom_c();
         let dom_dom_d = proxy
             .as_domain_create_CreateDomD()
             .create_domain_dom_d(dom_c);

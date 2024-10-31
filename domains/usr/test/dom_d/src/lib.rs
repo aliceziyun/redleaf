@@ -65,6 +65,10 @@ pub fn main(dom_c: Box<dyn interface::dom_c::DomC>) {
     let im = &*test_im;
     let value = im.borrow();
     println!("RefCell value: {}", value);
+
+    println!("[D] current thread id is: {}", libsyscalls::syscalls::sys_current_thread_id());
+
+    assert!(*value == 0usize);
 }
 
 // This function is called on panic.
