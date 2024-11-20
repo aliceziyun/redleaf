@@ -35,6 +35,7 @@ pub trait CreateProxy {
         create_xv6: Arc<dyn CreateRv6>,
         create_dom_c: Arc<dyn CreateDomC>,
         create_dom_d: Arc<dyn CreateDomD>,
+        create_dom_e: Arc<dyn CreateDomE>,
         create_shadow: Arc<dyn CreateShadow>,
         create_tpm: Arc<dyn CreateTpm>,
     ) -> (Box<dyn Domain>, Arc<dyn crate::proxy::Proxy>);
@@ -157,6 +158,8 @@ pub trait CreateRv6: Send + Sync {
     ) -> (Box<dyn Domain>, Box<dyn Rv6>);
 }
 
+pub type DomCRef<'a> = &'a Box<dyn DomC>;
+
 #[domain_create(path = "dom_c", relative_path = "usr/test/dom_c")]
 pub trait CreateDomC: Send + Sync {
     fn create_domain_dom_c(&self) -> (Box<dyn Domain>, Box<dyn DomC>);
@@ -165,15 +168,19 @@ pub trait CreateDomC: Send + Sync {
 
 #[domain_create(path = "dom_d", relative_path = "usr/test/dom_d")]
 pub trait CreateDomD: Send + Sync {
-    fn create_domain_dom_d(&self, dom_c: Box<dyn DomC>) -> (Box<dyn Domain>, ());
+    fn create_domain_dom_d(&self, dom_c: DomCRef) -> (Box<dyn Domain>, ());
+}
+
+#[domain_create(path = "dom_e", relative_path = "usr/test/dom_e")]
+pub trait CreateDomE: Send + Sync {
+    fn create_domain_dom_e(&self, dom_c: DomCRef) -> (Box<dyn Domain>, ());
 }
 
 #[domain_create(path = "shadow", relative_path = "usr/test/shadow")]
 pub trait CreateShadow: Send + Sync {
     fn create_domain_shadow(
         &self,
-        create_dom_c: Arc<dyn CreateDomC>,
-    ) -> (Box<dyn Domain>, Box<dyn DomC>);
+    ) -> (Box<dyn Domain>, ());
 }
 
 // #[domain_create(path = "benchnet")]

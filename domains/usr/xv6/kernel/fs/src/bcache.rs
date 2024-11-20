@@ -317,6 +317,7 @@ impl BufferCache {
             let mut guard = buffer.lock();
             (*guard).0 = Some(self.bdev.read(sector, guard.take()).unwrap());
         }
+
         BufferGuard {
             dev: device,
             block_number,

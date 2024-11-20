@@ -20,20 +20,14 @@ use core::cell::RefCell;
 
 struct ShadowDomain {
     dom: Option<Box<dyn syscalls::Domain>>,
-    dom_c: Box<dyn interface::dom_c::DomC>,
-    create_dom_c: Arc<dyn interface::domain_create::CreateDomC>,
 }
 
 impl ShadowDomain {
     fn new(
         dom: Box<dyn syscalls::Domain>,
-        create_dom_c: Arc<dyn interface::domain_create::CreateDomC>,
-        dom_c: Box<dyn interface::dom_c::DomC>,
     ) -> Self {
         Self {
             dom: Some(dom),
-            dom_c,
-            create_dom_c,
         }
     }
 }
@@ -45,61 +39,16 @@ struct Shadow {
 impl Shadow {
     fn new(
         dom: Box<dyn syscalls::Domain>,
-        create_dom_c: Arc<dyn interface::domain_create::CreateDomC>,
-        dom_c: Box<dyn interface::dom_c::DomC>,
     ) -> Self {
         Self {
-            dom: Mutex::new(ShadowDomain::new(dom, create_dom_c, dom_c)),
+            dom: Mutex::new(ShadowDomain::new(dom)),
         }
-    }
-}
-
-impl interface::dom_c::DomC for Shadow {
-    fn no_arg(&self) -> RpcResult<()> {
-        self.dom.lock().dom_c.no_arg()
-    }
-
-    fn one_arg(&self, x: usize) -> RpcResult<usize> {
-        let mut dom = self.dom.lock();
-        loop {
-            let r = dom.dom_c.one_arg(x);
-            if let Err(_e) = r {
-                println!("restarting domC domain");
-                let old_domain = dom.dom.take();
-                let (domain, dom_c) = dom.create_dom_c.recreate_domain_dom_c(old_domain.unwrap());
-                dom.dom = Some(domain);
-                dom.dom_c = dom_c;
-
-                /* restart invocation on the new domain */
-                println!("restart one_arg invocation");
-                continue;
-            }
-            break r;
-        }
-    }
-
-    fn one_rref(&self, x: RRef<usize>) -> RpcResult<RRef<usize>> {
-        self.dom.lock().dom_c.one_rref(x)
-    }
-
-    fn init_dom_c(&self, c: Box<dyn interface::dom_c::DomC>) -> RpcResult<()> {
-        self.dom.lock().dom_c.init_dom_c(c)
-    }
-
-    fn test_rref_with_smart_pointer(&self, size: &RRef<RefCell<usize>>){
-        self.dom.lock().dom_c.test_rref_with_smart_pointer(size)
     }
 }
 
 pub fn main(
-    create_dom_c: Arc<dyn interface::domain_create::CreateDomC>,
-) -> Box<dyn interface::dom_c::DomC> {
+){
     println!("Init shadow domain");
-
-    /* Create domain we're shadowing */
-    let (dom, dom_c) = create_dom_c.create_domain_dom_c();
-
-    Box::new(Shadow::new(dom, create_dom_c, dom_c))
 }
 
 // This function is called on panic.

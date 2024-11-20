@@ -116,6 +116,7 @@ pub fn trusted_entry(
     create_xv6: Arc<dyn interface::domain_create::CreateRv6>,
     create_dom_c: Arc<dyn interface::domain_create::CreateDomC>,
     create_dom_d: Arc<dyn interface::domain_create::CreateDomD>,
+    create_dom_e: Arc<dyn interface::domain_create::CreateDomE>,
     create_shadow: Arc<dyn interface::domain_create::CreateShadow>,
     create_benchnvme: Arc<dyn interface::domain_create::CreateBenchnvme>,
     create_tpm: Arc<dyn interface::domain_create::CreateTpm>,
@@ -137,47 +138,47 @@ pub fn trusted_entry(
 
     //println!("init userland print works");
 
-    #[cfg(feature = "test_guard_page")]
-    {
-        println!("start the test guard page test");
-        let foo = test_stack_exhaustion();
-        println!("test guard page: {}", foo);
-    }
+    // #[cfg(feature = "test_guard_page")]
+    // {
+    //     println!("start the test guard page test");
+    //     let foo = test_stack_exhaustion();
+    //     println!("test guard page: {}", foo);
+    // }
 
-    #[cfg(feature = "test_timer_thread")]
-    {
-        let t = sys_create_thread("init_int[timer]", timer_thread);
-        t.set_priority(10);
-    }
+    // #[cfg(feature = "test_timer_thread")]
+    // {
+    //     let t = sys_create_thread("init_int[timer]", timer_thread);
+    //     t.set_priority(10);
+    // }
 
-    #[cfg(feature = "test_sleep")]
-    test_sleep();
+    // #[cfg(feature = "test_sleep")]
+    // test_sleep();
 
-    #[cfg(feature = "test_threads")]
-    {
-        let t = sys_create_thread("init_thread", test_init_thread);
-        t.set_affinity(1);
+    // #[cfg(feature = "test_threads")]
+    // {
+    //     let t = sys_create_thread("init_thread", test_init_thread);
+    //     t.set_affinity(1);
 
-        let t2 = sys_create_thread("init_thread_2", test_init_thread2);
-        t2.set_affinity(0);
+    //     let t2 = sys_create_thread("init_thread_2", test_init_thread2);
+    //     t2.set_affinity(0);
 
-        #[cfg(feature = "test_sleep")]
-        test_sleep();
+    //     #[cfg(feature = "test_sleep")]
+    //     test_sleep();
 
-        println!("Setting affinity to CPUs 2 and 3");
-        t.set_affinity(2);
-        t2.set_affinity(3);
+    //     println!("Setting affinity to CPUs 2 and 3");
+    //     t.set_affinity(2);
+    //     t2.set_affinity(3);
 
-        #[cfg(feature = "test_sleep")]
-        test_sleep();
+    //     #[cfg(feature = "test_sleep")]
+    //     test_sleep();
 
-        println!("Setting affinity to CPUs 1 and 1");
-        t.set_affinity(1);
-        t2.set_affinity(1);
+    //     println!("Setting affinity to CPUs 1 and 1");
+    //     t.set_affinity(1);
+    //     t2.set_affinity(1);
 
-        drop(t);
-        drop(t2);
-    }
+    //     drop(t);
+    //     drop(t2);
+    // }
 
     // test_dummy_syscall();
 
@@ -202,19 +203,19 @@ pub fn trusted_entry(
         create_xv6,
         create_dom_c,
         create_dom_d,
+        create_dom_e,
         create_shadow,
         create_tpm,
     );
-    println!("created proxy");
 
-    // #[cfg(feature = "test_cd")]
-    // {
-        println!("Start test_cd!");
-        let (dom_dom_c, dom_c) = proxy.as_domain_create_CreateDomC().create_domain_dom_c();
-        let dom_dom_d = proxy
-            .as_domain_create_CreateDomD()
-            .create_domain_dom_d(dom_c);
-    // }
+    println!("Start test_cde!");
+    let (dom_dom_c, dom_c) = proxy.as_domain_create_CreateDomC().create_domain_dom_c();
+    let dom_dom_d = proxy
+        .as_domain_create_CreateDomD()
+        .create_domain_dom_d(&dom_c);
+    let dom_dom_e = proxy
+        .as_domain_create_CreateDomE()
+        .create_domain_dom_e(&dom_c);
 
     // we don't need the rest part in im test
 

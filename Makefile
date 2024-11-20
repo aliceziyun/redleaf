@@ -63,6 +63,7 @@ domain_list := $(addprefix domains/build/, \
 	proxy \
 	dom_c \
 	dom_d \
+	dom_e \
 	shadow \
 	xv6kernel \
 	xv6fs \

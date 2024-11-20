@@ -33,6 +33,7 @@ pub fn main(
     create_xv6: alloc::sync::Arc<dyn interface::domain_create::CreateRv6>,
     create_dom_c: alloc::sync::Arc<dyn interface::domain_create::CreateDomC>,
     create_dom_d: alloc::sync::Arc<dyn interface::domain_create::CreateDomD>,
+    create_dom_e: alloc::sync::Arc<dyn interface::domain_create::CreateDomE>,
     create_shadow: alloc::sync::Arc<dyn interface::domain_create::CreateShadow>,
     create_tpm: alloc::sync::Arc<dyn interface::domain_create::CreateTpm>,
 ) -> Arc<dyn interface::proxy::Proxy> {
@@ -53,6 +54,7 @@ pub fn main(
         create_xv6,
         create_dom_c,
         create_dom_d,
+        create_dom_e,
         create_shadow,
         create_benchnvme,
         create_tpm,

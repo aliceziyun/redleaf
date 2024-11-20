@@ -1,3 +1,4 @@
+use console::print;
 use spin::Mutex;
 
 use interface::rref::RRef;

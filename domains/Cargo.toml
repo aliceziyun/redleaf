@@ -22,6 +22,7 @@ members = [
 	# "usr/test/benchnvme",
 	# "usr/test/dom_c",
 	# "usr/test/dom_d",
+	"usr/test/dom_e",
 	# "usr/test/shadow",
 	# "usr/test/testtpm",
 
@@ -47,6 +48,7 @@ members = [
 	"generated/benchnvme_entry_point",
 	"generated/dom_c_entry_point",
 	"generated/dom_d_entry_point",
+	"generated/dom_e_entry_point",
 	"generated/shadow_entry_point",
 
 	"generated/xv6kernel_entry_point",

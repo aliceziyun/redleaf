@@ -5,7 +5,7 @@ extern crate malloc;
 
 use syscalls::{Heap, Syscall};
 
-use alloc::boxed::Box;
+use alloc::{boxed::Box, string::String};
 
 use console::println;
 
@@ -15,14 +15,20 @@ use interface::rref::RRef;
 
 use interface::rpc::RpcResult;
 
-use core::cell::RefCell;
+use core::cell::{Ref, RefCell};
 
 use interface::rref::traits::TypeIdentifiable;
 
-struct DomC {}
+struct DomC {
+    test_data: RRef<RefCell<usize>>,
+}
 
 impl DomC {
-    fn new() -> Self {Self{}}
+    fn new() -> Self {
+        Self {
+            test_data: RRef::new(RefCell::new(0usize)),
+        }
+    }
 }
 
 impl interface::dom_c::DomC for DomC {
@@ -39,9 +45,9 @@ impl interface::dom_c::DomC for DomC {
         Ok(x + 1)
     }
 
-    fn one_rref(&self, mut x: RRef<usize>) -> RpcResult<RRef<usize>> {
+    fn one_rref(&self, mut x: RRef<usize>) -> RRef<usize> {
         *x += 1;
-        Ok(x)
+        x
     }
 
     fn init_dom_c(&self, c: Box<dyn interface::dom_c::DomC>) -> RpcResult<()> {
@@ -49,7 +55,7 @@ impl interface::dom_c::DomC for DomC {
     }
 
     // Test RRef with smart pointer
-    fn test_rref_with_smart_pointer(&self, size: &RRef<RefCell<usize>>){
+    fn rref_as_arguement(&self, size: &RRef<RefCell<usize>>){
         let rc_size = &**size;
         {
             let mut value = rc_size.borrow_mut();
@@ -59,6 +65,13 @@ impl interface::dom_c::DomC for DomC {
         }
         // Ok(())
     }
+
+    fn rref_as_return_value (&self) -> &RRef<RefCell<usize>> {
+        &self.test_data
+    }
+    
+
+
 }
 
 pub fn main() -> Box<dyn interface::dom_c::DomC> {

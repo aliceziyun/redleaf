@@ -303,6 +303,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "dom_e"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "interface",
+ "lazy_static",
+ "libsyscalls",
+ "libtime",
+ "malloc",
+ "num-traits",
+ "spin 0.5.3",
+ "syscalls",
+]
+
+[[package]]
+name = "dom_e_entry_point"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "dom_e",
+ "interface",
+ "libsyscalls",
+ "syscalls",
+]
+
+[[package]]
 name = "fnv"
 version = "1.0.7"
 source = "git+https://github.com/servo/rust-fnv#4b4784ebfd3332dc61f0640764d6f1140e03a9ab"

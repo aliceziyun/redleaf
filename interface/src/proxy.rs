@@ -1,9 +1,6 @@
 use crate::bdev;
 use crate::domain_create::{
-    CreateAHCI, CreateBDevShadow, CreateBenchnet, CreateBenchnvme, CreateDomC, CreateDomD,
-    CreateIxgbe, CreateMemBDev, CreateNetShadow, CreateNvme, CreateNvmeShadow, CreatePCI,
-    CreateRv6, CreateRv6FS, CreateRv6Net, CreateRv6NetShadow, CreateRv6Usr, CreateShadow,
-    CreateVirtioBlock, CreateVirtioNet,
+    CreateAHCI, CreateBDevShadow, CreateBenchnet, CreateBenchnvme, CreateDomC, CreateDomD, CreateDomE, CreateIxgbe, CreateMemBDev, CreateNetShadow, CreateNvme, CreateNvmeShadow, CreatePCI, CreateRv6, CreateRv6FS, CreateRv6Net, CreateRv6NetShadow, CreateRv6Usr, CreateShadow, CreateVirtioBlock, CreateVirtioNet
 };
 use alloc::boxed::Box;
 use alloc::sync::Arc;
@@ -21,6 +18,7 @@ pub trait Proxy:
     + CreateRv6
     + CreateDomC
     + CreateDomD
+    + CreateDomE
     + CreateShadow
 {
     // necessary because rust doesn't support trait object upcasting
@@ -35,6 +33,7 @@ pub trait Proxy:
     fn as_domain_create_CreatePCI(&self) -> Arc<dyn crate::domain_create::CreatePCI>;
     fn as_domain_create_CreateRv6Net(&self) -> Arc<dyn crate::domain_create::CreateRv6Net>;
     fn as_domain_create_CreateDomC(&self) -> Arc<dyn crate::domain_create::CreateDomC>;
+    fn as_domain_create_CreateDomE(&self) -> Arc<dyn crate::domain_create::CreateDomE>;
     fn as_domain_create_CreateTpm(&self) -> Arc<dyn crate::domain_create::CreateTpm>;
     fn as_domain_create_CreateBDevShadow(&self) -> Arc<dyn crate::domain_create::CreateBDevShadow>;
     fn as_domain_create_CreateBenchnvme(&self) -> Arc<dyn crate::domain_create::CreateBenchnvme>;
