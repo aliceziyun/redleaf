@@ -69,8 +69,6 @@ impl interface::dom_c::DomC for DomC {
     fn rref_as_return_value (&self) -> &RRef<RefCell<usize>> {
         &self.test_data
     }
-    
-
 
 }
 
