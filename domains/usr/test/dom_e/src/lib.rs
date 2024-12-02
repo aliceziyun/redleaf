@@ -19,12 +19,14 @@ pub fn main(dom_c: &Box<dyn interface::dom_c::DomC>) {
 
     // assert!(dom_c.one_arg(12321).unwrap() == 12321 + 1);
 
-    let return_val = &**dom_c.rref_as_return_value();
-    let mut val = return_val.borrow_mut();
-    *val += 10;
+    let inner_val = &**dom_c.rref_as_return_value();
+    
+    let inner_val = inner_val.borrow_mut();
+    
+    assert!(inner_val.0 + inner_val.1 == 0);
 
-    assert!(*val == 20);
-    println!("[E] domain E execution finishes!")
+    println!("[E] now the tuple is: {:?}", inner_val);
+    println!("[E] domain D execution finishes!")
 }
 
 // This function is called on panic.

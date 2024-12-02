@@ -3,7 +3,7 @@
 extern crate alloc;
 extern crate malloc;
 
-use syscalls::{Heap, Syscall};
+use syscalls::{Continuation, Heap, Syscall};
 
 use alloc::{boxed::Box, string::String};
 
@@ -20,13 +20,13 @@ use core::cell::{Ref, RefCell};
 use interface::rref::traits::TypeIdentifiable;
 
 struct DomC {
-    test_data: RRef<RefCell<usize>>,
+    test_data: RRef<RefCell<(i32, i32)>>,
 }
 
 impl DomC {
     fn new() -> Self {
         Self {
-            test_data: RRef::new(RefCell::new(0usize)),
+            test_data: RRef::new(RefCell::new((0i32, 0i32))),
         }
     }
 }
@@ -66,7 +66,7 @@ impl interface::dom_c::DomC for DomC {
         // Ok(())
     }
 
-    fn rref_as_return_value (&self) -> &RRef<RefCell<usize>> {
+    fn rref_as_return_value (&self) -> &RRef<RefCell<(i32, i32)>> {
         &self.test_data
     }
 
@@ -74,6 +74,13 @@ impl interface::dom_c::DomC for DomC {
 
 pub fn main() -> Box<dyn interface::dom_c::DomC> {
     println!("Init domain C");
+
+    let thread = libsyscalls::syscalls::sys_current_thread();
+    
+    let cont =  Continuation {
+        
+    }
+    libsyscalls::syscalls::sys_register_cont(cont);
 
     Box::new(DomC::new())
 }

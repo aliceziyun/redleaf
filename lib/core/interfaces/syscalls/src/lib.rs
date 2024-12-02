@@ -5,6 +5,7 @@ extern crate alloc;
 use alloc::boxed::Box;
 use core::alloc::Layout;
 use core::any::TypeId;
+use core::task::Context;
 use spin::MutexGuard;
 extern crate platform;
 use pc_keyboard::DecodedKey;
@@ -115,6 +116,7 @@ pub trait Thread: Send {
     fn set_priority(&self, prio: u64);
     fn set_state(&self, state: ThreadState);
     fn sleep(&self, guard: MutexGuard<()>);
+    // fn get_context(&self) -> Context
 }
 
 /// RedLeaf Domain interface

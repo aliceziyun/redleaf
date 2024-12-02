@@ -10,7 +10,7 @@ use alloc::{boxed::Box, rc::Rc};
 
 use console::println;
 
-use core::panic::PanicInfo;
+use core::{cell::Ref, panic::PanicInfo};
 
 use interface::rref::RRef;
 
@@ -29,13 +29,16 @@ pub fn main(dom_c: &Box<dyn interface::dom_c::DomC>) {
     // let value = im.borrow();
     // println!("[D] RefCell value: {}", value);
 
-    let return_val = &**dom_c.rref_as_return_value();
+    let inner_val = &**dom_c.rref_as_return_value();
     
     // do modification here
-    let mut val = return_val.borrow_mut();
-    *val += 10;
+    let mut inner_val = inner_val.borrow_mut();
+    inner_val.0 += 10;
+    panic!("panic test");
+    inner_val.1 -= 10;
 
-    println!("[D] now the value is: {}", val);
+
+    println!("[D] now the tuple is: {:?}", inner_val);
     println!("[D] domain D execution finishes!")
 }
 
@@ -44,5 +47,7 @@ pub fn main(dom_c: &Box<dyn interface::dom_c::DomC>) {
 fn panic(info: &PanicInfo) -> ! {
     println!("domain D panic: {:?}", info);
     libsyscalls::syscalls::sys_backtrace();
+    libsyscalls::syscalls::sys_test_unwind();
+
     loop {}
 }
