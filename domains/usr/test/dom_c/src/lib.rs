@@ -76,11 +76,12 @@ pub fn main() -> Box<dyn interface::dom_c::DomC> {
     println!("Init domain C");
 
     let thread = libsyscalls::syscalls::sys_current_thread();
+    thread.print_context();
     
-    let cont =  Continuation {
+    // let cont =  Continuation {
         
-    }
-    libsyscalls::syscalls::sys_register_cont(cont);
+    // }
+    // libsyscalls::syscalls::sys_register_cont(cont);
 
     Box::new(DomC::new())
 }

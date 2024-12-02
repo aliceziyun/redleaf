@@ -250,6 +250,7 @@ pub enum ThreadState {
 pub const STACK_SIZE_IN_PAGES: usize = 4096;
 
 #[repr(C)]
+#[derive(Debug)]
 pub struct Context {
     r15: usize,
     r14: usize,
@@ -944,6 +945,17 @@ impl syscalls::Thread for PThread {
         }
 
         do_yield();
+
+        enable_irq();
+    }
+
+    fn print_context(&self) {
+        disable_irq();
+
+        let mut thread = self.thread.lock();
+        let ref context = thread.context;
+
+        println!("{:#?}", context);
 
         enable_irq();
     }
