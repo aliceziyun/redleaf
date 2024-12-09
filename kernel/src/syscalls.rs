@@ -1,6 +1,8 @@
+use core::borrow::Borrow;
+
 use crate::arch::vspace::MapAction;
 use crate::arch::vspace::{ResourceType, VSpace};
-use crate::domain::domain::Domain;
+use crate::domain::domain::{Domain, KERNEL_DOMAIN};
 use crate::interrupt::{disable_irq, enable_irq};
 use crate::kbd::KBDCTRL;
 use crate::memory::{paddr_to_kernel_vaddr, VSPACE};
@@ -150,6 +152,9 @@ impl syscalls::Syscall for PDomain {
 
     fn sys_current_thread_id(&self) -> u64 {
         disable_irq();
+
+        let _domain_id = self.sys_get_current_domain_id();
+        println!("[alice] domain id in syscall {}", _domain_id);
         let thread_id = {
             // get domain id without locking the current thread
             let thread_option: &Option<Arc<Mutex<thread::Thread>>> = &thread::CURRENT.borrow();
@@ -217,6 +222,20 @@ impl syscalls::Syscall for PDomain {
     /* AB: XXX: Remove this system it's for testing only */
     fn sys_test_unwind(&self) {
         disable_irq();
+        // [alice] test call domain's function
+        // let thread_option: &Option<Arc<Mutex<thread::Thread>>> = &thread::CURRENT.borrow();
+        // let thread_arc: &Arc<Mutex<thread::Thread>> = thread_option.as_ref().unwrap();
+        // let thread_mutex: &mut Mutex<thread::Thread> = unsafe {
+        //     &mut *((&**thread_arc) as *const Mutex<thread::Thread>
+        //         as *mut Mutex<thread::Thread>)
+        // };
+        // let domain = thread_mutex.get_mut().domain.borrow().as_ref().unwrap();
+        // let domain: &mut Mutex<Domain> = unsafe {
+        //     &mut *((&**domain) as *const Mutex<Domain>
+        //         as *mut Mutex<Domain>)
+        // };
+        // let domain = domain.get_mut();
+
         unwind();
         enable_irq();
     }

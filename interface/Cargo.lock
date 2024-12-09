@@ -62,20 +62,11 @@ dependencies = [
  "byteorder",
  "console",
  "hashbrown",
- "interface_attribute_placeholder",
  "num-derive",
  "num-traits",
  "pci_driver",
  "spin",
  "syscalls",
-]
-
-[[package]]
-name = "interface_attribute_placeholder"
-version = "0.1.0"
-dependencies = [
- "proc-macro2",
- "quote",
 ]
 
 [[package]]

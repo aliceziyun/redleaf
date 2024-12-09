@@ -4,6 +4,7 @@
 use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::string::ToString;
+use x86::controlregs;
 use core::cell::RefCell;
 //use alloc::rc::Rc;
 use crate::active_cpus;
@@ -281,7 +282,8 @@ pub struct Thread {
     rebalance: bool,
     context: Context,
     stack: *mut u64,
-    domain: Option<Arc<Mutex<Domain>>>,
+    // domain: Option<Arc<Mutex<Domain>>>,
+    pub domain: Option<Arc<Mutex<Domain>>>,
     // Next thread in the scheduling queue
     next: Link,
     // Next thread on the domain list
@@ -954,8 +956,10 @@ impl syscalls::Thread for PThread {
 
         let mut thread = self.thread.lock();
         let ref context = thread.context;
+        let ref continuation = thread.continuations[0];
 
         println!("{:#?}", context);
+        println!("{:#?}", continuation);
 
         enable_irq();
     }
