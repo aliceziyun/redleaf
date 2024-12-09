@@ -9,7 +9,7 @@ use alloc::{boxed::Box, string::String};
 
 use console::println;
 
-use core::panic::PanicInfo;
+use core::{ops::Deref, panic::PanicInfo};
 
 use interface::rref::RRef;
 
@@ -56,8 +56,12 @@ impl interface::dom_c::DomC for DomC {
 
     // Test RRef with smart pointer
     fn rref_as_arguement(&self, size: &RRef<RefCell<usize>>){
-        let rc_size = &**size;
+        // let bc = size.borrow_count();
+        // println!("[C] bc is: {}", bc);
+        let rc_size = size.deref();
         {
+            // let bc = size.borrow_count();
+            // println!("[C] bc is: {}", bc);
             let mut value = rc_size.borrow_mut();
             println!("[C] change the interior mutable variable");
             println!("[C] current thread id is: {}", libsyscalls::syscalls::sys_current_thread_id());
@@ -74,14 +78,6 @@ impl interface::dom_c::DomC for DomC {
 
 pub fn main() -> Box<dyn interface::dom_c::DomC> {
     println!("Init domain C");
-
-    let thread = libsyscalls::syscalls::sys_current_thread();
-    
-    let cont =  Continuation {
-        
-    }
-    libsyscalls::syscalls::sys_register_cont(cont);
-
     Box::new(DomC::new())
 }
 

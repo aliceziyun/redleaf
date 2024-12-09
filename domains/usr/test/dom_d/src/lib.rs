@@ -23,11 +23,13 @@ pub fn main(dom_c: &Box<dyn interface::dom_c::DomC>) {
 
     println!("[D] start interior mutability test");
 
-    // let test_im = RRef::new(RefCell::new(0usize));
-    // dom_c.rref_as_arguement(&test_im);
-    // let im = &*test_im;
-    // let value = im.borrow();
-    // println!("[D] RefCell value: {}", value);
+    let test_im = RRef::new(RefCell::new(0usize));
+    // let bc = test_im.borrow_count();
+    // println!("[D] bc is: {}", bc);
+    dom_c.rref_as_arguement(&test_im);
+    let im = &*test_im;
+    let value = im.borrow();
+    println!("[D] RefCell value: {}", value);
 
     let inner_val = &**dom_c.rref_as_return_value();
     

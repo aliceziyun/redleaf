@@ -3,6 +3,7 @@
 use super::traits::{RRefable, TypeIdentifiable, CustomCleanup};
 
 use alloc::boxed::Box;
+use console::println;
 use core::ops::{Deref, DerefMut, Drop};
 use core::alloc::Layout;
 use spin::Once;
@@ -80,7 +81,7 @@ impl<T: RRefable> RRef<T> where T: TypeIdentifiable {
 impl<T: RRefable> RRef<T> {
     pub fn borrow(&self) {
         unsafe {
-            *self.borrow_count_pointer += 1;
+            *self.borrow_count_pointer += 1; 
         }
     }
 
