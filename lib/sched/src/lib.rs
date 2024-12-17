@@ -1,27 +1,46 @@
+#![no_std]
+
+use core::option::Option;
 use core::cell::RefCell;
-//use alloc::rc::Rc;
-use crate::thread::Thread;
-use alloc::sync::Arc;
-use spin::Mutex;
+use interface::rref::traits::TypeIdentifiable;
+use interface::rref::RRef;
 
-use sched::ThreadState;
+pub const MAX_PRIO: usize = 15;
+pub const MAX_CPUS: usize = 64;
+pub const MAX_CONT: usize = 10;
 
-/// Per-CPU queues of interrupt threads
-#[thread_local]
-static INTERRUPT_WAIT_QUEUES: RefCell<InterruptWaitQueues> =
-    RefCell::new(InterruptWaitQueues::new());
+pub type Priority = usize;
 
-pub const MAX_INT: usize = 256;
-
-/// Interrupt wait queues are local to CPU
-struct InterruptWaitQueues {
-    queues: [Option<Arc<Mutex<Thread>>>; MAX_INT],
+pub struct ThreadMeta {
+    pub id: u64,
+    pub current_domain_id: u64,
+    pub state: ThreadState,
+    priority: Priority,
+    affinity: u64,
+    rebalance: bool,
 }
 
-impl InterruptWaitQueues {
-    const fn new() -> InterruptWaitQueues {
-        InterruptWaitQueues {
-            queues: [
+// [alice] it might better to try RRefDeque
+pub struct ThreadMetaQueues {
+    queue: RRef<ThreadMetaQueuesInner>,
+}
+
+impl ThreadMetaQueues {
+    fn new() -> ThreadMetaQueues {
+        ThreadMetaQueues {
+            queue: RRef::new(ThreadMetaQueuesInner::new()),
+        }
+    }
+}
+
+struct ThreadMetaQueuesInner {
+    innerQueue: RefCell<[Option<ThreadMeta>; 256]>
+}
+
+impl ThreadMetaQueuesInner {
+    const fn new() -> ThreadMetaQueuesInner {
+        ThreadMetaQueuesInner {
+            innerQueue: RefCell::new([
                 None, None, None, None, None, None, None, None, None, None, None, None, None, None,
                 None, None, None, None, None, None, None, None, None, None, None, None, None, None,
                 None, None, None, None, None, None, None, None, None, None, None, None, None, None,
@@ -41,49 +60,22 @@ impl InterruptWaitQueues {
                 None, None, None, None, None, None, None, None, None, None, None, None, None, None,
                 None, None, None, None, None, None, None, None, None, None, None, None, None, None,
                 None, None, None, None,
-            ],
+            ]),
         }
     }
 }
 
-impl InterruptWaitQueues {
-    fn add_thread(&mut self, queue: usize, thread: Arc<Mutex<Thread>>) {
-        let previous_head = self.queues[queue].take();
-
-        if let Some(node) = previous_head {
-            thread.lock().next_iwq = Some(node);
-        } else {
-            thread.lock().next_iwq = None;
-        }
-
-        self.queues[queue] = Some(thread);
-    }
-
-    fn signal_threads(&mut self, queue: usize) {
-        loop {
-            let previous_head = self.queues[queue].take();
-
-            if let Some(thread) = previous_head {
-                trace_wq!(
-                    "signal interrupt threads: int: {} thread {}",
-                    queue,
-                    thread.lock().name
-                );
-                self.queues[queue] = thread.lock().next_iwq.take();
-                thread.lock().state = sched::ThreadState::Runnable;
-            } else {
-                break;
-            }
-        }
-
-        //crate::thread::do_yield()
+impl TypeIdentifiable for ThreadMetaQueuesInner {
+    fn type_id() -> u64 {
+        11514561
     }
 }
 
-pub fn add_interrupt_thread(queue: usize, thread: Arc<Mutex<Thread>>) {
-    INTERRUPT_WAIT_QUEUES.borrow_mut().add_thread(queue, thread);
-}
-
-pub fn signal_interrupt_threads(queue: usize) {
-    INTERRUPT_WAIT_QUEUES.borrow_mut().signal_threads(queue);
+pub enum ThreadState {
+    Running = 0,
+    Runnable = 1,
+    Paused = 2,
+    Waiting = 3,
+    Idle = 4,
+    Rebalanced = 5,
 }

@@ -3,7 +3,7 @@ use alloc::vec::Vec;
 use alloc::boxed::Box;
 use core::ops::Deref;
 use spin::{Mutex, MutexGuard};
-use syscalls::Thread;
+use syscalls::{Thread, ThreadState};
 
 pub struct CondVarInternal {
     threads: Mutex<Vec<Box<dyn Thread>>>,

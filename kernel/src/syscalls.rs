@@ -271,7 +271,7 @@ impl syscalls::Interrupt for Interrupt {
         // AB: XXX: for now just mark it as WAITING later we'll
         // implement a real doubly-linked list and take it out
         let t = crate::thread::get_current_ref();
-        t.lock().state = crate::thread::ThreadState::Waiting;
+        t.lock().state = sched::ThreadState::Waiting;
 
         crate::waitqueue::add_interrupt_thread(int as usize, t);
 

@@ -18,9 +18,11 @@ use crate::tls::cpuid;
 use alloc::sync::Arc;
 use core::alloc::Layout;
 use core::sync::atomic::{AtomicU64, Ordering};
-use spin::{Mutex, MutexGuard};
+use spin::{Mutex, MutexGuard, Once};
 
 use syscalls::Continuation;
+use sched::{MAX_PRIO, MAX_CPUS, MAX_CONT};
+use sched::{Priority, ThreadState, ThreadMeta, ThreadMetaQueues};
 
 extern "C" {
     fn switch(prev_ctx: *mut Context, next_ctx: *mut Context);
@@ -44,12 +46,10 @@ static mut CONT_STATE: ContinuationState = ContinuationState {
 /// just sequential ID
 static THREAD_ID: AtomicU64 = AtomicU64::new(0);
 
-const MAX_PRIO: usize = 15;
-const MAX_CPUS: usize = 64;
-const MAX_CONT: usize = 10;
 const NULL_RETURN_MARKER: usize = 0x0000_0000;
 
 /// Per-CPU scheduler
+// TODO: [alice] move to scheduler
 #[thread_local]
 static SCHED: RefCell<Scheduler> = RefCell::new(Scheduler::new());
 
@@ -57,191 +57,8 @@ static SCHED: RefCell<Scheduler> = RefCell::new(Scheduler::new());
 #[thread_local]
 pub static CURRENT: RefCell<Option<Arc<Mutex<Thread>>>> = RefCell::new(None);
 
-//#[thread_local]
-//static IDLE: RefCell<Option<Arc<Mutex<Thread>>>> = RefCell::new(None);
-
-static mut REBALANCE_FLAGS: RebalanceFlags = RebalanceFlags::new();
-static REBALANCE_QUEUES: Mutex<RebalanceQueues> = Mutex::new(RebalanceQueues::new());
-
-type Priority = usize;
+// TODO: [alice] move to scheduler
 pub type Link = Option<Arc<Mutex<Thread>>>;
-
-#[repr(align(64))]
-struct RebalanceFlag {
-    rebalance: bool,
-}
-
-impl RebalanceFlag {
-    const fn new() -> RebalanceFlag {
-        RebalanceFlag { rebalance: false }
-    }
-}
-
-struct RebalanceFlags {
-    flags: [RebalanceFlag; MAX_CPUS],
-}
-
-// AB: I need this nested data structure hoping that
-// it will ensure cache-line alignment
-impl RebalanceFlags {
-    const fn new() -> RebalanceFlags {
-        RebalanceFlags {
-            flags: [
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-                RebalanceFlag::new(),
-            ],
-        }
-    }
-}
-
-struct RebalanceQueues {
-    queues: [Link; MAX_CPUS],
-}
-
-unsafe impl Sync for RebalanceQueues {}
-unsafe impl Send for RebalanceQueues {}
-
-impl RebalanceQueues {
-    const fn new() -> RebalanceQueues {
-        RebalanceQueues {
-            queues: [
-                None, None, None, None, None, None, None, None, None, None, None, None, None, None,
-                None, None, None, None, None, None, None, None, None, None, None, None, None, None,
-                None, None, None, None, None, None, None, None, None, None, None, None, None, None,
-                None, None, None, None, None, None, None, None, None, None, None, None, None, None,
-                None, None, None, None, None, None, None, None,
-            ],
-        }
-    }
-}
-
-fn rb_push_thread(queue: usize, thread: Arc<Mutex<Thread>>) {
-    let mut rb_lock = REBALANCE_QUEUES.lock();
-
-    let previous_head = rb_lock.queues[queue].take();
-
-    if let Some(node) = previous_head {
-        thread.lock().next = Some(node);
-    } else {
-        thread.lock().next = None;
-    }
-    rb_lock.queues[queue] = Some(thread);
-}
-
-fn rb_pop_thread(queue: usize) -> Option<Arc<Mutex<Thread>>> {
-    let mut rb_lock = REBALANCE_QUEUES.lock();
-    let previous_head = rb_lock.queues[queue].take();
-
-    if let Some(node) = previous_head {
-        rb_lock.queues[queue] = node.lock().next.take();
-        return Some(node);
-    } else {
-        return None;
-    }
-}
-
-fn rb_queue_signal(queue: usize) {
-    println!("rb queue signal, queue:{}", queue);
-    unsafe {
-        REBALANCE_FLAGS.flags[queue].rebalance = true;
-    };
-}
-
-fn rb_queue_clear_signal(queue: usize) {
-    println!("rb clear signal, queue:{}", queue);
-    unsafe {
-        REBALANCE_FLAGS.flags[queue].rebalance = false;
-    };
-}
-
-fn rb_check_signal(queue: usize) -> bool {
-    unsafe { REBALANCE_FLAGS.flags[queue].rebalance }
-}
-
-/// Move thread to another CPU, affinity is CPU number for now
-// We push thread on the rebalance queue (at the moment it's not
-// on the scheduling queue of this CPU), and signal rebalance request
-// for the target CPU
-fn rebalance_thread(t: Arc<Mutex<Thread>>) {
-    // AB: TODO: treat affinity in a standard way as a bitmask
-    // not as CPU number, yes I'm vomiting too
-    let cpu_id = t.lock().affinity;
-
-    rb_push_thread(cpu_id as usize, t);
-    rb_queue_signal(cpu_id as usize);
-}
-
-#[derive(Clone, Copy, Debug)]
-pub enum ThreadState {
-    Running = 0,
-    Runnable = 1,
-    Paused = 2,
-    Waiting = 3,
-    Idle = 4,
-    Rebalanced = 5,
-}
 
 // AB: Watch out! if you change format of this line
 // you need to update the grep arguments in checkstack.mk
@@ -270,7 +87,12 @@ pub struct Context {
 // https://internals.rust-lang.org/t/shouldnt-pointers-be-send-sync-or/8818
 unsafe impl core::marker::Send for Thread {}
 
+// TODO: [alice] init this later
+pub static THREAD_META_ARRAY: Once<Arc<Mutex<ThreadMetaQueues>>> = Once::new();
+
 pub struct Thread {
+    metadata: &'static ThreadMeta,
+
     pub id: u64,
     pub current_domain_id: u64,
     pub name: String,
@@ -278,6 +100,7 @@ pub struct Thread {
     priority: Priority,
     affinity: u64,
     rebalance: bool,
+
     context: Context,
     stack: *mut u64,
     domain: Option<Arc<Mutex<Domain>>>,
@@ -672,7 +495,7 @@ extern "C" fn die(/*func: extern fn()*/) {
     disable_irq();
 
     loop {
-        // println!("waiting to be cleaned up");
+        println!("[DIE] waiting to be cleaned up");
         do_yield();
     }
 }
@@ -709,7 +532,7 @@ pub fn get_current_pthread() -> Box<PThread> {
 
 // Kicked from the timer IRQ
 pub fn schedule() {
-    //println!("Schedule");
+    println!("Schedule");
 
     let mut s = SCHED.borrow_mut();
 
@@ -943,6 +766,7 @@ impl syscalls::Thread for PThread {
             drop(thread);
         }
 
+        println!("[sleep] inter sleep");
         do_yield();
 
         enable_irq();
@@ -973,4 +797,179 @@ pub fn init_threads() {
 
     // Make idle the current thread
     set_current(idle);
+}
+
+/* ----------------------- unused ------------------------*/
+//#[thread_local]
+//static IDLE: RefCell<Option<Arc<Mutex<Thread>>>> = RefCell::new(None);
+
+static mut REBALANCE_FLAGS: RebalanceFlags = RebalanceFlags::new();
+static REBALANCE_QUEUES: Mutex<RebalanceQueues> = Mutex::new(RebalanceQueues::new());
+
+#[repr(align(64))]
+struct RebalanceFlag {
+    rebalance: bool,
+}
+
+impl RebalanceFlag {
+    const fn new() -> RebalanceFlag {
+        RebalanceFlag { rebalance: false }
+    }
+}
+
+struct RebalanceFlags {
+    flags: [RebalanceFlag; MAX_CPUS],
+}
+
+// AB: I need this nested data structure hoping that
+// it will ensure cache-line alignment
+impl RebalanceFlags {
+    const fn new() -> RebalanceFlags {
+        RebalanceFlags {
+            flags: [
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+                RebalanceFlag::new(),
+            ],
+        }
+    }
+}
+
+struct RebalanceQueues {
+    queues: [Link; MAX_CPUS],
+}
+
+unsafe impl Sync for RebalanceQueues {}
+unsafe impl Send for RebalanceQueues {}
+
+impl RebalanceQueues {
+    const fn new() -> RebalanceQueues {
+        RebalanceQueues {
+            queues: [
+                None, None, None, None, None, None, None, None, None, None, None, None, None, None,
+                None, None, None, None, None, None, None, None, None, None, None, None, None, None,
+                None, None, None, None, None, None, None, None, None, None, None, None, None, None,
+                None, None, None, None, None, None, None, None, None, None, None, None, None, None,
+                None, None, None, None, None, None, None, None,
+            ],
+        }
+    }
+}
+
+fn rb_push_thread(queue: usize, thread: Arc<Mutex<Thread>>) {
+    let mut rb_lock = REBALANCE_QUEUES.lock();
+
+    let previous_head = rb_lock.queues[queue].take();
+
+    if let Some(node) = previous_head {
+        thread.lock().next = Some(node);
+    } else {
+        thread.lock().next = None;
+    }
+    rb_lock.queues[queue] = Some(thread);
+}
+
+fn rb_pop_thread(queue: usize) -> Option<Arc<Mutex<Thread>>> {
+    let mut rb_lock = REBALANCE_QUEUES.lock();
+    let previous_head = rb_lock.queues[queue].take();
+
+    if let Some(node) = previous_head {
+        rb_lock.queues[queue] = node.lock().next.take();
+        return Some(node);
+    } else {
+        return None;
+    }
+}
+
+fn rb_queue_signal(queue: usize) {
+    println!("rb queue signal, queue:{}", queue);
+    unsafe {
+        REBALANCE_FLAGS.flags[queue].rebalance = true;
+    };
+}
+
+fn rb_queue_clear_signal(queue: usize) {
+    println!("rb clear signal, queue:{}", queue);
+    unsafe {
+        REBALANCE_FLAGS.flags[queue].rebalance = false;
+    };
+}
+
+fn rb_check_signal(queue: usize) -> bool {
+    false
+    // unsafe { REBALANCE_FLAGS.flags[queue].rebalance }
+}
+
+/// Move thread to another CPU, affinity is CPU number for now
+// We push thread on the rebalance queue (at the moment it's not
+// on the scheduling queue of this CPU), and signal rebalance request
+// for the target CPU
+fn rebalance_thread(t: Arc<Mutex<Thread>>) {
+    // AB: TODO: treat affinity in a standard way as a bitmask
+    // not as CPU number, yes I'm vomiting too
+    let cpu_id = t.lock().affinity;
+
+    rb_push_thread(cpu_id as usize, t);
+    rb_queue_signal(cpu_id as usize);
 }

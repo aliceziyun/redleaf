@@ -2,6 +2,7 @@
 #![feature(associated_type_defaults)]
 
 extern crate alloc;
+use alloc::string::String;
 use alloc::boxed::Box;
 use core::alloc::Layout;
 use core::any::TypeId;

@@ -45,6 +45,7 @@ unwind = { path = "../lib/core/unwind" }
 syscalls = { path = "../lib/core/interfaces/syscalls" }
 interface = { path = "../interface/generated" }
 ahci = { path = "../lib/core/interfaces/dev/ahci" }
+sched = { path = "../lib/sched" }
 platform = { path = "../lib/core/interfaces/platform" }
 # pci_driver = { path = "../lib/core/interfaces/dev/pci/pci_driver" }
 
