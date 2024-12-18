@@ -261,6 +261,7 @@ dependencies = [
  "libtime",
  "malloc",
  "num-traits",
+ "sched",
  "spin 0.5.3",
  "syscalls",
 ]
@@ -937,6 +938,13 @@ dependencies = [
  "libsyscalls",
  "log",
  "syscalls",
+]
+
+[[package]]
+name = "sched"
+version = "0.1.0"
+dependencies = [
+ "interface",
 ]
 
 [[package]]

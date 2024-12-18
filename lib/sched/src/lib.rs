@@ -45,12 +45,12 @@ impl ThreadMetaQueues {
     }
 }
 
-struct ThreadMetaQueuesInner {
+pub struct ThreadMetaQueuesInner {
     innerQueue: RefCell<[Option<ThreadMeta>; 256]>
 }
 
 impl ThreadMetaQueuesInner {
-    const fn new() -> ThreadMetaQueuesInner {
+    pub const fn new() -> ThreadMetaQueuesInner {
         ThreadMetaQueuesInner {
             innerQueue: RefCell::new([
                 None, None, None, None, None, None, None, None, None, None, None, None, None, None,
@@ -79,7 +79,7 @@ impl ThreadMetaQueuesInner {
 
 impl TypeIdentifiable for ThreadMetaQueuesInner {
     fn type_id() -> u64 {
-        11514561
+        123455
     }
 }
 

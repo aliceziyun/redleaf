@@ -46,7 +46,7 @@ impl<T: RRefable> RRef<T> where T: TypeIdentifiable {
         // when we modify the rref, we dereference the value pointer
         let allocation = match unsafe { HEAP.force_get().alloc(layout, type_id) } {
             Some(allocation) => allocation,
-            None => panic!("{} is not a registered RRef type", core::any::type_name::<T>())
+            None => panic!("{} is not a registered RRef type with type id {}", core::any::type_name::<T>(), type_id)
         };
 
         // the memory we get back has size and alignment of T, so this cast is safe

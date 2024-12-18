@@ -40,6 +40,6 @@ impl<T: RRefable, const N: usize> CustomCleanup for [T; N] {
 
 /// Expose `add_type` as a trait so it's easier for the IDL compiler to generate appropriate code
 /// for adding TypeIdentifiable types to the DropMap.
-pub trait AddType {
+trait AddType {
     fn add_type<T: 'static + CustomCleanup + TypeIdentifiable>(&mut self);
 }

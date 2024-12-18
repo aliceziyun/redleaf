@@ -19,14 +19,18 @@ use core::cell::{Ref, RefCell};
 
 use interface::rref::traits::TypeIdentifiable;
 
+use sched::ThreadMetaQueuesInner;
+
 struct DomC {
     test_data: RRef<RefCell<(i32, i32)>>,
+    test2: RRef<ThreadMetaQueuesInner>,
 }
 
 impl DomC {
     fn new() -> Self {
         Self {
             test_data: RRef::new(RefCell::new((0i32, 0i32))),
+            test2: RRef::new(ThreadMetaQueuesInner::new()),
         }
     }
 }

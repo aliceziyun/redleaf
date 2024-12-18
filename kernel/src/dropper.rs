@@ -5,6 +5,8 @@ use interface::rref::{traits::CustomCleanup, traits::TypeIdentifiable, RRef};
 use interface::typeid::DropMap;
 use interface;
 
+use sched::ThreadMetaQueuesInner;
+
 /// GEN
 lazy_static! {
     pub static ref DROPPER: Dropper = {
