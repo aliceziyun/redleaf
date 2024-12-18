@@ -270,7 +270,12 @@ impl syscalls::Interrupt for Interrupt {
         // take the thread off the scheduling queue
         // AB: XXX: for now just mark it as WAITING later we'll
         // implement a real doubly-linked list and take it out
-        let t = crate::thread::get_current_ref();
+        let t = match crate::thread::get_current_ref_option() {
+            Some(t) => t,
+            None => {
+                return;
+            }
+        };
         t.lock().state = sched::ThreadState::Waiting;
 
         crate::waitqueue::add_interrupt_thread(int as usize, t);

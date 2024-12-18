@@ -56,7 +56,9 @@ pub fn _print(args: core::fmt::Arguments) {
         unlock_console();
 
         println!("Interrupts are enabled");
-        x86_64::instructions::interrupts::int3();
+
+        // [alice] we should turn off int3 test here...
+        // x86_64::instructions::interrupts::int3();
     }
 
     // We don't need interrupts off any more, inside the

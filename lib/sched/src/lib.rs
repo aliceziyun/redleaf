@@ -15,9 +15,9 @@ pub struct ThreadMeta {
     pub id: u64,
     pub current_domain_id: u64,
     pub state: ThreadState,
-    priority: Priority,
-    affinity: u64,
-    rebalance: bool,
+    pub priority: Priority,
+    pub affinity: u64,
+    pub rebalance: bool,
 }
 
 // [alice] it might better to try RRefDeque
@@ -26,10 +26,22 @@ pub struct ThreadMetaQueues {
 }
 
 impl ThreadMetaQueues {
-    fn new() -> ThreadMetaQueues {
+    pub fn new() -> ThreadMetaQueues {
         ThreadMetaQueues {
             queue: RRef::new(ThreadMetaQueuesInner::new()),
         }
+    }
+
+    pub fn add_thread(&self, index: u64, meta: ThreadMeta) {
+        let mut inner_queue = self.queue.innerQueue.borrow_mut();
+        inner_queue[index as usize] = Some(meta);
+    }
+
+    // [alice] this seems unsafe
+    pub fn get_thread_ref(&self, index: u64) -> *const ThreadMeta {
+        let inner_queue = self.queue.innerQueue.borrow();
+        let meta = inner_queue[index as usize].as_ref().unwrap();
+        meta as *const ThreadMeta
     }
 }
 
@@ -71,6 +83,7 @@ impl TypeIdentifiable for ThreadMetaQueuesInner {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
 pub enum ThreadState {
     Running = 0,
     Runnable = 1,

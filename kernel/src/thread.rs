@@ -24,6 +24,8 @@ use syscalls::Continuation;
 use sched::{MAX_PRIO, MAX_CPUS, MAX_CONT};
 use sched::{Priority, ThreadState, ThreadMeta, ThreadMetaQueues};
 
+use hashbrown::HashMap;
+
 extern "C" {
     fn switch(prev_ctx: *mut Context, next_ctx: *mut Context);
 }
@@ -89,9 +91,10 @@ unsafe impl core::marker::Send for Thread {}
 
 // TODO: [alice] init this later
 pub static THREAD_META_ARRAY: Once<Arc<Mutex<ThreadMetaQueues>>> = Once::new();
+pub static THREAD_MAP: Once<Arc<Mutex<HashMap<u64, Thread>>>> = Once::new();
 
 pub struct Thread {
-    metadata: &'static ThreadMeta,
+    metadata: *const ThreadMeta,
 
     pub id: u64,
     pub current_domain_id: u64,
@@ -165,58 +168,6 @@ pub unsafe fn alloc_stack() -> *mut u8 {
     stack_u8
 }
 
-/// Pop and discard the top continuation
-///
-/// Assumes IRQs are already turned off.
-/// Panics if there is no continuation on the
-/// stack.
-pub unsafe fn pop_continuation() -> &'static Continuation {
-    if (CONT_STATE.cur as *const _) <= CONT_STATE.start {
-        panic!("Tried to pop on an empty continuation stack");
-    }
-
-    let ptr = CONT_STATE.cur;
-    CONT_STATE.cur = CONT_STATE.cur.offset(-1);
-
-    &(*ptr)
-}
-
-/// Push a new Continuation to the stack
-///
-/// Returns a mutable reference that is
-/// technically valid for the lifetime of
-/// the thread.
-///
-/// Panics if the continuation stack is full.
-pub unsafe fn push_continuation(cont: &Continuation) {
-    if (CONT_STATE.cur as *const _) >= CONT_STATE.end {
-        panic!("Tried to push to a full continuation stack");
-    }
-
-    let mut dst = *(CONT_STATE.cur);
-
-    dst.func = cont.func;
-    dst.rflags = cont.rflags;
-    dst.r15 = cont.r15;
-    dst.r14 = cont.r14;
-    dst.r13 = cont.r13;
-    dst.r12 = cont.r12;
-    dst.r11 = cont.r11;
-    dst.rbx = cont.rbx;
-    dst.rbp = cont.rbp;
-    dst.rsp = cont.rsp;
-    dst.rax = cont.rax;
-    dst.rcx = cont.rcx;
-    dst.rdx = cont.rdx;
-    dst.rsi = cont.rsi;
-    dst.rdi = cont.rdi;
-    dst.r8 = cont.r8;
-    dst.r9 = cont.r9;
-    dst.r10 = cont.r10;
-
-    CONT_STATE.cur = CONT_STATE.cur.offset(1);
-}
-
 impl Thread {
     fn init_stack(&mut self, func: extern "C" fn()) {
         /* AB: XXX: die() takes one argument lets pass it via r15 and hope
@@ -261,14 +212,31 @@ impl Thread {
     }
 
     pub fn new(name: &str, func: extern "C" fn()) -> Thread {
-        let mut t = Thread {
-            id: THREAD_ID.fetch_add(1, Ordering::SeqCst),
+        let id = THREAD_ID.fetch_add(1, Ordering::SeqCst);
+        let t_meta = ThreadMeta {
+            id: id.clone(),
             current_domain_id: 0,
-            name: name.to_string(),
             state: ThreadState::Runnable,
             priority: 0,
             affinity: 0,
             rebalance: false,
+        };
+        let mut array = THREAD_META_ARRAY.r#try().unwrap().lock();
+        array.add_thread(id.clone(), t_meta);
+
+        let mut t = Thread {
+            name: name.to_string(),
+
+            metadata: array.get_thread_ref(id.clone()),
+
+            id: id.clone(),
+
+            current_domain_id: 0,
+            state: ThreadState::Runnable,
+            priority: 0,
+            affinity: 0,
+            rebalance: false,
+            
             context: Context::new(),
             stack: 0 as *mut _,
             domain: None,
@@ -495,14 +463,9 @@ extern "C" fn die(/*func: extern fn()*/) {
     disable_irq();
 
     loop {
-        println!("[DIE] waiting to be cleaned up");
         do_yield();
     }
 }
-
-//fn set_idle(t: Arc<Mutex<Thread>>) {
-//    IDLE.replace(Some(t));
-//}
 
 fn set_current(t: Arc<Mutex<Thread>>) {
     CURRENT.replace(Some(t));
@@ -515,6 +478,11 @@ fn get_current() -> Option<Arc<Mutex<Thread>>> {
 /// Return rc into the current thread
 pub fn get_current_ref() -> Arc<Mutex<Thread>> {
     let rc_t = CURRENT.borrow().as_ref().unwrap().clone();
+    rc_t
+}
+
+pub fn get_current_ref_option() -> Option<Arc<Mutex<Thread>>> {
+    let rc_t = CURRENT.borrow().as_ref().cloned();
     rc_t
 }
 
@@ -546,7 +514,14 @@ pub fn schedule() {
             Some(t) => t,
             None => {
                 // Check if current is runnable
-                let c = get_current_ref();
+                // [alice] current might not be initialized
+                let c = match get_current_ref_option() {
+                    Some(c) => c,
+                    None => {
+                        return;
+                    }
+                };
+
                 let state = c.lock().state;
                 match state {
                     ThreadState::Runnable => {
@@ -774,6 +749,8 @@ impl syscalls::Thread for PThread {
 }
 
 pub fn init_threads() {
+    initialize_thread_list();
+
     let idle = Arc::new(Mutex::new(Thread::new("idle", idle)));
 
     let kernel_domain = KERNEL_DOMAIN
@@ -797,6 +774,16 @@ pub fn init_threads() {
 
     // Make idle the current thread
     set_current(idle);
+}
+
+fn initialize_thread_list(){
+    THREAD_META_ARRAY.call_once(|| {
+        Arc::new(Mutex::new(ThreadMetaQueues::new()))
+    });
+
+    THREAD_MAP.call_once(|| {
+        Arc::new(Mutex::new(HashMap::new()))
+    });
 }
 
 /* ----------------------- unused ------------------------*/
@@ -972,4 +959,56 @@ fn rebalance_thread(t: Arc<Mutex<Thread>>) {
 
     rb_push_thread(cpu_id as usize, t);
     rb_queue_signal(cpu_id as usize);
+}
+
+/// Pop and discard the top continuation
+///
+/// Assumes IRQs are already turned off.
+/// Panics if there is no continuation on the
+/// stack.
+pub unsafe fn pop_continuation() -> &'static Continuation {
+    if (CONT_STATE.cur as *const _) <= CONT_STATE.start {
+        panic!("Tried to pop on an empty continuation stack");
+    }
+
+    let ptr = CONT_STATE.cur;
+    CONT_STATE.cur = CONT_STATE.cur.offset(-1);
+
+    &(*ptr)
+}
+
+/// Push a new Continuation to the stack
+///
+/// Returns a mutable reference that is
+/// technically valid for the lifetime of
+/// the thread.
+///
+/// Panics if the continuation stack is full.
+pub unsafe fn push_continuation(cont: &Continuation) {
+    if (CONT_STATE.cur as *const _) >= CONT_STATE.end {
+        panic!("Tried to push to a full continuation stack");
+    }
+
+    let mut dst = *(CONT_STATE.cur);
+
+    dst.func = cont.func;
+    dst.rflags = cont.rflags;
+    dst.r15 = cont.r15;
+    dst.r14 = cont.r14;
+    dst.r13 = cont.r13;
+    dst.r12 = cont.r12;
+    dst.r11 = cont.r11;
+    dst.rbx = cont.rbx;
+    dst.rbp = cont.rbp;
+    dst.rsp = cont.rsp;
+    dst.rax = cont.rax;
+    dst.rcx = cont.rcx;
+    dst.rdx = cont.rdx;
+    dst.rsi = cont.rsi;
+    dst.rdi = cont.rdi;
+    dst.r8 = cont.r8;
+    dst.r9 = cont.r9;
+    dst.r10 = cont.r10;
+
+    CONT_STATE.cur = CONT_STATE.cur.offset(1);
 }
