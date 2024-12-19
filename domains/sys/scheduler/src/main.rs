@@ -6,6 +6,7 @@ extern crate malloc;
 
 use interface::rref::RRef;
 use interface::rpc::RpcResult;
+use interface::sched::{ThreadMetaQueuesInner, ThreadMeta};
 use alloc::{boxed::Box, string::String};
 use console::println;
 
@@ -26,35 +27,30 @@ impl Scheduler {
 
 impl interface::sched::Scheduler for Scheduler {
     fn set_thread_queue(&self, queue: &RRef<ThreadMetaQueuesInner>) -> RpcResult<()> {
-        OK(())
+        Ok(())
     }
 
     fn set_idle_thread(&self, idle: u64) -> RpcResult<()> {
-        OK(())
+        Ok(())
     }
 
     fn get_idle_thread(&self) -> RpcResult<u64> {
-        OK(1)
+        Ok(1)
     }
 
     fn put_thread_in_queue(&self, metadata: RRef<ThreadMeta>) -> RpcResult<()> {
-        OK(())
+        Ok(())
     }
 
     fn get_next(&self) -> RpcResult<u64> {
-        OK(1)
+        Ok(1)
     }
 }
 
 #[no_mangle]
 pub fn trusted_entry() -> Box<dyn interface::sched::Scheduler> {
-    println("init domain scheduler!");
+    // println!("init domain scheduler!");
     Box::new(Scheduler::new())
-}
-
-#[alloc_error_handler]
-fn alloc_error_handler(layout: alloc::alloc::Layout) -> ! {
-    panic!("allocation error: {:?}", layout)
 }
 
 #[panic_handler]

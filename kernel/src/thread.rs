@@ -688,9 +688,9 @@ impl syscalls::Thread for PThread {
 }
 
 pub fn init_threads() {
-    disable_irq();
+    // disable_irq();
     let sched_domain: Box<dyn SchedulerDom> = generated_domain_create::create_domain_scheduler();
-    enable_irq();
+    // enable_irq(); 
 
     initialize_thread_list();
 
