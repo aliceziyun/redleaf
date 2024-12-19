@@ -26,6 +26,8 @@ use interface::sched::{Priority,  ThreadMeta, ThreadMetaQueues};
 
 use hashbrown::HashMap;
 
+use crate::generated_domain_create;
+
 extern "C" {
     fn switch(prev_ctx: *mut Context, next_ctx: *mut Context);
 }
@@ -685,6 +687,10 @@ impl syscalls::Thread for PThread {
 }
 
 pub fn init_threads() {
+    disable_irq();
+    generated_domain_create::create_domain_scheduler();
+    enable_irq();
+
     initialize_thread_list();
 
     let idle = Arc::new(Mutex::new(Thread::new("idle", idle)));
