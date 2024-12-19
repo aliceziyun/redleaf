@@ -1,10 +1,15 @@
 #![no_std]
 #![no_main]
 
+extern crate alloc;
+extern crate malloc;
+
 use interface::rref::RRef;
 use interface::rpc::RpcResult;
 use alloc::{boxed::Box, string::String};
 use console::println;
+
+use core::{panic::PanicInfo};
 
 struct Scheduler {
     idle: u64,
@@ -14,7 +19,7 @@ struct Scheduler {
 impl Scheduler {
     fn new() -> Self {
         Self {
-            idle: -1,
+            idle: 0,
         }
     }
 }
@@ -45,4 +50,15 @@ impl interface::sched::Scheduler for Scheduler {
 pub fn trusted_entry() -> Box<dyn interface::sched::Scheduler> {
     println("init domain scheduler!");
     Box::new(Scheduler::new())
+}
+
+#[alloc_error_handler]
+fn alloc_error_handler(layout: alloc::alloc::Layout) -> ! {
+    panic!("allocation error: {:?}", layout)
+}
+
+#[panic_handler]
+fn panic(info: &PanicInfo) -> ! {
+    libsyscalls::syscalls::sys_backtrace();
+    loop {}
 }

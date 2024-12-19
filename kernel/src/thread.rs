@@ -23,6 +23,7 @@ use spin::{Mutex, MutexGuard, Once};
 use syscalls::Continuation;
 use interface::sched::{MAX_PRIO, MAX_CPUS, MAX_CONT, ThreadState};
 use interface::sched::{Priority,  ThreadMeta, ThreadMetaQueues};
+use interface::sched::Scheduler as SchedulerDom;
 
 use hashbrown::HashMap;
 
@@ -688,7 +689,7 @@ impl syscalls::Thread for PThread {
 
 pub fn init_threads() {
     disable_irq();
-    generated_domain_create::create_domain_scheduler();
+    let sched_domain: Box<dyn SchedulerDom> = generated_domain_create::create_domain_scheduler();
     enable_irq();
 
     initialize_thread_list();

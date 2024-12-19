@@ -946,7 +946,10 @@ dependencies = [
  "console",
  "interface",
  "lazy_static",
+ "libsyscalls",
+ "malloc",
  "num-traits",
+ "syscalls",
 ]
 
 [[package]]

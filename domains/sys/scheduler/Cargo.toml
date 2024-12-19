@@ -5,8 +5,11 @@ authors = ["Alice"]
 edition = "2018"
 
 [dependencies]
+libsyscalls = { path = "../../../lib/core/libsyscalls" }
+syscalls = { path = "../../../lib/core/interfaces/syscalls" }
 interface = { path = "../../../interface/generated" }
 console = { path = "../../../lib/core/console" }
+malloc = { path = "../../../lib/core/malloc" }
 
 [dependencies.lazy_static]
 version = "1.3.0"
