@@ -4,7 +4,7 @@ use crate::thread::Thread;
 use alloc::sync::Arc;
 use spin::Mutex;
 
-use sched::ThreadState;
+use interface::sched::ThreadState;
 
 /// Per-CPU queues of interrupt threads
 #[thread_local]
@@ -70,7 +70,7 @@ impl InterruptWaitQueues {
                     thread.lock().name
                 );
                 self.queues[queue] = thread.lock().next_iwq.take();
-                thread.lock().state = sched::ThreadState::Runnable;
+                thread.lock().state = interface::sched::ThreadState::Runnable;
             } else {
                 break;
             }

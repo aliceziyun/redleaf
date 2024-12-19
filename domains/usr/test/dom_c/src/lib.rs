@@ -19,18 +19,18 @@ use core::cell::{Ref, RefCell};
 
 use interface::rref::traits::TypeIdentifiable;
 
-use sched::ThreadMetaQueuesInner;
+use interface::dom_c::RawPtr;
 
 struct DomC {
     test_data: RRef<RefCell<(i32, i32)>>,
-    test2: RRef<ThreadMetaQueuesInner>,
+    // test2: RRef<ThreadMetaQueuesInner>,
 }
 
 impl DomC {
     fn new() -> Self {
         Self {
             test_data: RRef::new(RefCell::new((0i32, 0i32))),
-            test2: RRef::new(ThreadMetaQueuesInner::new()),
+            // test2: RRef::new(ThreadMetaQueuesInner::new()),
         }
     }
 }
@@ -59,25 +59,16 @@ impl interface::dom_c::DomC for DomC {
     }
 
     // Test RRef with smart pointer
-    fn rref_as_arguement(&self, size: &RRef<RefCell<usize>>){
+    fn rref_as_arguement(&self, ptr: &RRef<RawPtr>){
         // let bc = size.borrow_count();
         // println!("[C] bc is: {}", bc);
-        let rc_size = size.deref();
-        {
-            // let bc = size.borrow_count();
-            // println!("[C] bc is: {}", bc);
-            let mut value = rc_size.borrow_mut();
-            println!("[C] change the interior mutable variable");
-            println!("[C] current thread id is: {}", libsyscalls::syscalls::sys_current_thread_id());
-            *value += 10;
-        }
-        // Ok(())
+        let ptr = ptr.deref();
+        ptr.get_raw_pointer();
     }
 
     fn rref_as_return_value (&self) -> &RRef<RefCell<(i32, i32)>> {
         &self.test_data
     }
-
 }
 
 pub fn main() -> Box<dyn interface::dom_c::DomC> {

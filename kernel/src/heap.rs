@@ -36,7 +36,8 @@ impl syscalls::Heap for PHeap {
 }
 
 unsafe fn alloc_heap(layout: Layout, type_id: u64) -> Option<SharedHeapAllocation> {
-    if (!DROPPER.has_type(type_id) && type_id != 123455) {
+    // if (!DROPPER.has_type(type_id) && type_id != 123455) {
+    if (!DROPPER.has_type(type_id)) {
         return None;
     }
 

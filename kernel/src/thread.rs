@@ -21,8 +21,8 @@ use core::sync::atomic::{AtomicU64, Ordering};
 use spin::{Mutex, MutexGuard, Once};
 
 use syscalls::Continuation;
-use sched::{MAX_PRIO, MAX_CPUS, MAX_CONT};
-use sched::{Priority, ThreadState, ThreadMeta, ThreadMetaQueues};
+use interface::sched::{MAX_PRIO, MAX_CPUS, MAX_CONT, ThreadState};
+use interface::sched::{Priority,  ThreadMeta, ThreadMetaQueues};
 
 use hashbrown::HashMap;
 
@@ -252,70 +252,6 @@ impl Thread {
         t.init_stack(func);
 
         t
-    }
-}
-
-impl SchedulerQueue {
-    pub const fn new() -> SchedulerQueue {
-        SchedulerQueue {
-            highest: 0,
-            prio_queues: [
-                None, None, None, None, None, None, None, None, None, None, None, None, None, None,
-                None, None,
-            ],
-        }
-    }
-
-    fn push_thread(&mut self, queue: usize, thread: Arc<Mutex<Thread>>) {
-        let previous_head = self.prio_queues[queue].take();
-
-        if let Some(node) = previous_head {
-            thread.lock().next = Some(node);
-        } else {
-            thread.lock().next = None;
-        }
-
-        self.prio_queues[queue] = Some(thread);
-    }
-
-    pub fn pop_thread(&mut self, queue: usize) -> Option<Arc<Mutex<Thread>>> {
-        let previous_head = self.prio_queues[queue].take();
-
-        if let Some(node) = previous_head {
-            self.prio_queues[queue] = node.lock().next.take();
-            Some(node)
-        } else {
-            None
-        }
-    }
-
-    // Add thread to the queue that matches thread's priority
-    pub fn put_thread(&mut self, thread: Arc<Mutex<Thread>>) {
-        let prio = thread.lock().priority;
-
-        self.push_thread(prio, thread);
-
-        if self.highest < prio {
-            trace_sched!("set highest priority to {}", prio);
-            self.highest = prio
-        }
-    }
-
-    // Try to get the thread with the highest priority
-    pub fn get_highest(&mut self) -> Option<Arc<Mutex<Thread>>> {
-        loop {
-            match self.pop_thread(self.highest) {
-                None => {
-                    if self.highest == 0 {
-                        return None;
-                    }
-                    self.highest -= 1;
-                }
-                Some(t) => {
-                    return Some(t);
-                }
-            }
-        }
     }
 }
 
@@ -1011,4 +947,68 @@ pub unsafe fn push_continuation(cont: &Continuation) {
     dst.r10 = cont.r10;
 
     CONT_STATE.cur = CONT_STATE.cur.offset(1);
+}
+
+impl SchedulerQueue {
+    pub const fn new() -> SchedulerQueue {
+        SchedulerQueue {
+            highest: 0,
+            prio_queues: [
+                None, None, None, None, None, None, None, None, None, None, None, None, None, None,
+                None, None,
+            ],
+        }
+    }
+
+    fn push_thread(&mut self, queue: usize, thread: Arc<Mutex<Thread>>) {
+        let previous_head = self.prio_queues[queue].take();
+
+        if let Some(node) = previous_head {
+            thread.lock().next = Some(node);
+        } else {
+            thread.lock().next = None;
+        }
+
+        self.prio_queues[queue] = Some(thread);
+    }
+
+    pub fn pop_thread(&mut self, queue: usize) -> Option<Arc<Mutex<Thread>>> {
+        let previous_head = self.prio_queues[queue].take();
+
+        if let Some(node) = previous_head {
+            self.prio_queues[queue] = node.lock().next.take();
+            Some(node)
+        } else {
+            None
+        }
+    }
+
+    // Add thread to the queue that matches thread's priority
+    pub fn put_thread(&mut self, thread: Arc<Mutex<Thread>>) {
+        let prio = thread.lock().priority;
+
+        self.push_thread(prio, thread);
+
+        if self.highest < prio {
+            trace_sched!("set highest priority to {}", prio);
+            self.highest = prio
+        }
+    }
+
+    // Try to get the thread with the highest priority
+    pub fn get_highest(&mut self) -> Option<Arc<Mutex<Thread>>> {
+        loop {
+            match self.pop_thread(self.highest) {
+                None => {
+                    if self.highest == 0 {
+                        return None;
+                    }
+                    self.highest -= 1;
+                }
+                Some(t) => {
+                    return Some(t);
+                }
+            }
+        }
+    }
 }

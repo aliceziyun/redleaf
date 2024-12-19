@@ -276,7 +276,7 @@ impl syscalls::Interrupt for Interrupt {
                 return;
             }
         };
-        t.lock().state = sched::ThreadState::Waiting;
+        t.lock().state = interface::sched::ThreadState::Waiting;
 
         crate::waitqueue::add_interrupt_thread(int as usize, t);
 

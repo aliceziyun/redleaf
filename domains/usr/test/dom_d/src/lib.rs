@@ -16,6 +16,8 @@ use interface::rref::RRef;
 
 use core::cell::RefCell;
 
+use interface::dom_c::RawPtr;
+
 pub fn main(dom_c: &Box<dyn interface::dom_c::DomC>) {
     println!("[D] Init domain D");
 
@@ -23,16 +25,17 @@ pub fn main(dom_c: &Box<dyn interface::dom_c::DomC>) {
 
     println!("[D] start interior mutability test");
 
-    let test_im = RRef::new(RefCell::new(0usize));
+    let test_im = RRef::new(RawPtr {
+        value: 1,
+    });
     // let bc = test_im.borrow_count();
     // println!("[D] bc is: {}", bc);
     dom_c.rref_as_arguement(&test_im);
-    let im = &*test_im;
-    let value = im.borrow();
-    println!("[D] RefCell value: {}", value);
+    // let im = &*test_im;
+    // let value = im.borrow();
+    // println!("[D] RefCell value: {}", value);
 
     let inner_val = &**dom_c.rref_as_return_value();
-    
     // do modification here
     let mut inner_val = inner_val.borrow_mut();
     inner_val.0 += 10;
