@@ -101,5 +101,12 @@ impl ThreadMetaQueuesInner {
 
 #[interface]
 pub trait Scheduler {
-    fn set_queue(&self, queue: &RRef<ThreadMetaQueuesInner>);
+    fn set_thread_queue(&self, queue: &RRef<ThreadMetaQueuesInner>) -> RpcResult<()>;
+
+    // [alice] for idle thread, we just record id
+    fn set_idle_thread(&self, idle: u64) -> RpcResult<()>;
+    fn get_idle_thread(&self) -> RpcResult<u64>;
+
+    fn put_thread_in_queue(&self, metadata: RRef<ThreadMeta>) -> RpcResult<()>;
+    fn get_next(&self) -> RpcResult<u64>;
 }

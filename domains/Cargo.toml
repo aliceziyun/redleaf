@@ -11,6 +11,7 @@ members = [
 	# "sys/driver/virtio_net",
 	# "sys/driver/virtio_block",
 	"sys/init",
+	"sys/scheduler",
 	# "usr/proxy",
 	# "usr/shadow/bdev",
 	# "usr/shadow/net",

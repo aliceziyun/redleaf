@@ -261,7 +261,6 @@ dependencies = [
  "libtime",
  "malloc",
  "num-traits",
- "sched",
  "spin 0.5.3",
  "syscalls",
 ]
@@ -941,10 +940,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "sched"
+name = "scheduler"
 version = "0.1.0"
 dependencies = [
+ "console",
  "interface",
+ "lazy_static",
+ "num-traits",
 ]
 
 [[package]]
