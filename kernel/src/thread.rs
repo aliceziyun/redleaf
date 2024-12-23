@@ -439,8 +439,6 @@ pub fn get_current_pthread() -> Box<PThread> {
 
 // Kicked from the timer IRQ
 pub fn schedule() {
-    println!("Schedule");
-
     let mut s = SCHED.borrow_mut();
 
     // Process rebalance requests
@@ -461,6 +459,8 @@ pub fn schedule() {
                     }
                 };
 
+                // println!("current is thread is {}", c.lock().name);
+
                 let state = c.lock().state;
                 match state {
                     ThreadState::Runnable => {
@@ -477,6 +477,7 @@ pub fn schedule() {
                         return;
                     }
                     _ => {
+                        println!("set idle");
                         // Current is not runnable, and it was the only
                         // running thread, switch to idle
                         break s.get_idle_thread();
@@ -680,19 +681,23 @@ impl syscalls::Thread for PThread {
             drop(thread);
         }
 
-        println!("[sleep] inter sleep");
         do_yield();
 
         enable_irq();
     }
 }
 
-pub fn init_threads() {
+extern "C" fn kernel_thread_init() {
     // disable_irq();
-    let sched_domain: Box<dyn SchedulerDom> = generated_domain_create::create_domain_scheduler();
+    // let sched_domain: Box<dyn SchedulerDom> = generated_domain_create::create_domain_scheduler();
     // enable_irq(); 
+}
 
+pub fn init_threads() {
     initialize_thread_list();
+
+    // let kernel_thread = Arc::new(Mutex::new(Thread::new("kernel", kernel_thread_init)));
+    // set_current(kernel_thread);
 
     let idle = Arc::new(Mutex::new(Thread::new("idle", idle)));
 

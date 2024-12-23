@@ -190,6 +190,12 @@ extern "C" fn init_user() {
     enable_irq();
 }
 
+extern "C" fn init_scheduler() {
+    disable_irq();
+    generated_domain_create::create_domain_scheduler();
+    enable_irq();
+}
+
 fn start_init_thread() {
     crate::thread::create_thread("init", init_user);
 }
@@ -380,13 +386,18 @@ pub extern "C" fn rust_main_ap() -> ! {
         // We add it to the scheduler queue on this CPU.
         // When we enable the interrupts below the timer interrupt will
         // kick the scheduler
-        start_init_thread();
+
+        // start_init_thread();
+        crate::thread::create_thread("scheduler", init_scheduler);
+        // generated_domain_create::create_domain_scheduler();
     }
 
     unwind::unwind_test();
 
     println!("cpu{}: Initialized", cpu_id);
     println!("cpu{}: Ready to enable interrupts", cpu_id);
+
+    start_init_thread();
 
     RUNNING_CPUS.fetch_add(1, Ordering::SeqCst);
 
