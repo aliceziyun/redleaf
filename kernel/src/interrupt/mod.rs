@@ -7,6 +7,7 @@ use crate::console::unlock_console;
 use crate::drivers::Driver;
 use crate::redsys::IRQRegistrar;
 use crate::{entryother, gdt, println};
+use x86_64::registers::rflags;
 
 pub mod idt;
 mod ioapic;
@@ -471,10 +472,11 @@ extern "C" fn do_IRQ(pt_regs: &mut PtRegs) -> u64 {
 
 // IRQ 0: Timer
 fn timer_interrupt_handler(#[allow(unused_variables)] pt_regs: &mut PtRegs) {
+    if rflags::read().contains(rflags::RFlags::INTERRUPT_FLAG) == true {    
+        crate::waitqueue::signal_interrupt_threads(32);
+        crate::thread::schedule();
+    }
     end_of_interrupt(InterruptIndex::Timer.as_u8());
-
-    crate::waitqueue::signal_interrupt_threads(32);
-    crate::thread::schedule();
 }
 
 #[no_mangle]
@@ -516,13 +518,15 @@ extern "C" fn sync_regs(pt_regs: &mut PtRegs) -> u64 {
 #[inline(always)]
 pub fn disable_irq() {
     unsafe {
-        x86::irq::disable();
+        x86_64::instructions::interrupts::disable();
+        // x86::irq::disable();
     }
 }
 
 #[inline(always)]
 pub fn enable_irq() {
     unsafe {
-        x86::irq::enable();
+        // x86::irq::enable();
+        x86_64::instructions::interrupts::enable();
     }
 }

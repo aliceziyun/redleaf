@@ -96,6 +96,8 @@ unsafe impl core::marker::Send for Thread {}
 pub static THREAD_META_ARRAY: Once<Arc<Mutex<ThreadMetaQueues>>> = Once::new();
 pub static THREAD_MAP: Once<Arc<Mutex<HashMap<u64, Thread>>>> = Once::new();
 
+pub static SCHEDULER: Once<Arc<Mutex<Box<dyn interface::sched::Scheduler>>>> = Once::new();
+
 pub struct Thread {
     metadata: *const ThreadMeta,
 
@@ -439,8 +441,9 @@ pub fn get_current_pthread() -> Box<PThread> {
 
 // Kicked from the timer IRQ
 pub fn schedule() {
+    println!("schedule");
+    
     let mut s = SCHED.borrow_mut();
-    // let mut s: ScheulderDomain
 
     // Process rebalance requests
     if rb_check_signal(cpuid()) {
@@ -459,8 +462,6 @@ pub fn schedule() {
                         return;
                     }
                 };
-
-                // println!("current is thread is {}", c.lock().name);
 
                 let state = c.lock().state;
                 match state {
@@ -517,6 +518,9 @@ pub fn schedule() {
     };
 
     trace_sched!("switch to {}", next_thread.lock().name);
+
+    println!("current thread is {}", c.lock().name);
+    println!("next thread is {}", next_thread.lock().name);
 
     // Make next thread current
     set_current(next_thread.clone());
@@ -697,18 +701,14 @@ extern "C" fn kernel_thread_init() {
 pub fn init_threads() {
     initialize_thread_list();
 
-    // let kernel_thread = Arc::new(Mutex::new(Thread::new("kernel", kernel_thread_init)));
-    // set_current(kernel_thread);
-
     let idle = Arc::new(Mutex::new(Thread::new("idle", idle)));
-
-    let kernel_domain = KERNEL_DOMAIN
-        .r#try()
-        .expect("Kernel domain is not initialized");
+    let (dom, sched) = generated_domain_create::create_domain_scheduler();
+    SCHEDULER.call_once(|| Arc::new(Mutex::new(sched)));
 
     {
         let mut t = idle.lock();
-        t.domain = Some(kernel_domain.clone());
+        t.domain = Some(dom.clone());
+        // t.current_domain_id = dom.domain.lock().id;
         t.state = ThreadState::Idle;
 
         t.continuation_ptr = &t.continuations as *const _ as *mut _;

@@ -100,7 +100,7 @@ impl ThreadMetaQueuesInner {
 
 
 #[interface]
-pub trait Scheduler{
+pub trait Scheduler: Send + Sync{
     fn set_thread_queue(&self, queue: &RRef<ThreadMetaQueuesInner>) -> RpcResult<()>;
 
     // [alice] for idle thread, we just record id

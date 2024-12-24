@@ -53,7 +53,7 @@ pub fn trusted_entry(
     ints: Box<dyn syscalls::Interrupt + Send + Sync>,
 ) -> Box<dyn interface::sched::Scheduler> {
     libsyscalls::syscalls::init(s);
-    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
+    interface::rref::init(heap, 12);        // [alice] use a magic number
 
     let ints_clone = ints.int_clone();
     libsyscalls::syscalls::init_interrupts(ints);

@@ -75,6 +75,7 @@ use crate::pci::scan_pci_devs;
 use alloc::{boxed::Box};
 use core::ptr;
 use x86::cpuid::CpuId;
+use x86_64::registers::rflags;
 
 pub static mut ap_entry_running: bool = true;
 pub const MAX_CPUS: u32 = 4;
@@ -315,8 +316,6 @@ pub extern "C" fn rust_main() -> ! {
 
     // Microkernel runs with interrupts disabled
     // we re-enable them on exits
-    //x86_64::instructions::interrupts::enable();
-
     //panic!("Test panic in main()");
     rust_main_ap();
 }
@@ -387,31 +386,29 @@ pub extern "C" fn rust_main_ap() -> ! {
         // We add it to the scheduler queue on this CPU.
         // When we enable the interrupts below the timer interrupt will
         // kick the scheduler
-        
     }
 
     unwind::unwind_test();
 
-    let sched: Box<dyn interface::sched::Scheduler> = generated_domain_create::create_domain_scheduler();
-    println!("{}", sched.get_next().unwrap());
-
     println!("cpu{}: Initialized", cpu_id);
     println!("cpu{}: Ready to enable interrupts", cpu_id);
-
-    start_init_thread();
 
     RUNNING_CPUS.fetch_add(1, Ordering::SeqCst);
 
     // Enable interrupts; the timer interrupt will schedule the next thread
     enable_irq();
 
+    start_init_thread();
+
+    crate::thread::schedule();
+
     halt();
 }
 
 pub fn halt() -> ! {
     loop {
-        //x86_64::instructions::interrupts::enable();
-        //println!(".");
+        // x86_64::instructions::interrupts::enable();
+        // println!(".");
         x86_64::instructions::hlt();
     }
 }
