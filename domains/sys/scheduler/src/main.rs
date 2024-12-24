@@ -51,8 +51,7 @@ pub fn trusted_entry(
     s: Box<dyn syscalls::Syscall + Send + Sync>,
     heap: Box<dyn syscalls::Heap + Send + Sync>,
     ints: Box<dyn syscalls::Interrupt + Send + Sync>,
-// ) -> Box<dyn interface::sched::Scheduler> {
-) {
+) -> Box<dyn interface::sched::Scheduler> {
     libsyscalls::syscalls::init(s);
     interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
@@ -60,7 +59,7 @@ pub fn trusted_entry(
     libsyscalls::syscalls::init_interrupts(ints);
 
     println!("init domain scheduler!");
-    Box::new(Scheduler::new());
+    Box::new(Scheduler::new())
 }
 
 #[panic_handler]

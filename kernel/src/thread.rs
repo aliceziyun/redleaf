@@ -440,6 +440,7 @@ pub fn get_current_pthread() -> Box<PThread> {
 // Kicked from the timer IRQ
 pub fn schedule() {
     let mut s = SCHED.borrow_mut();
+    // let mut s: ScheulderDomain
 
     // Process rebalance requests
     if rb_check_signal(cpuid()) {
