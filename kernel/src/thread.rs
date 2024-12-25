@@ -699,12 +699,12 @@ extern "C" fn kernel_thread_init() {
 }
 
 pub fn init_threads() {
-    initialize_thread_list();
+    init_thread_list();
 
-    let idle = Arc::new(Mutex::new(Thread::new("idle", idle)));
     let (dom, sched) = generated_domain_create::create_domain_scheduler();
     SCHEDULER.call_once(|| Arc::new(Mutex::new(sched)));
 
+    let idle = Arc::new(Mutex::new(Thread::new("idle", idle)));
     {
         let mut t = idle.lock();
         t.domain = Some(dom.clone());
@@ -725,7 +725,7 @@ pub fn init_threads() {
     set_current(idle);
 }
 
-fn initialize_thread_list(){
+fn init_thread_list(){
     THREAD_META_ARRAY.call_once(|| {
         Arc::new(Mutex::new(ThreadMetaQueues::new()))
     });

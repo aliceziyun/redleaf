@@ -10,39 +10,47 @@ use interface::sched::{ThreadMetaQueuesInner, ThreadMeta};
 use alloc::{boxed::Box, string::String, sync::Arc};
 // use spin::Mutex;
 use console::println;
-use core::{panic::PanicInfo};
+use core::{panic::PanicInfo, cell::{Cell, RefCell}, option::Option};
+use core::ops::Deref;
 
 struct Scheduler {
-    idle: u64,
+    idle: Cell<u64>,
 }
 
 impl Scheduler {
     fn new() -> Self {
         Self {
-            idle: 0,
+            idle: Cell::new(0),
         }
     }
 }
 
 impl interface::sched::Scheduler for Scheduler {
-    fn set_thread_queue(&self, queue: &RRef<ThreadMetaQueuesInner>) -> RpcResult<()> {
-        Ok(())
-    }
+    // fn set_queue(&self, queue: &RRef<ThreadMetaQueuesInner>) -> RpcResult<()> {
+    //     self.queue = Some(queue);
+    // }
 
     fn set_idle_thread(&self, idle: u64) -> RpcResult<()> {
+        self.idle.set(idle);
         Ok(())
     }
 
     fn get_idle_thread(&self) -> RpcResult<u64> {
-        Ok(1)
+        Ok(self.idle.get())
     }
 
-    fn put_thread_in_queue(&self, metadata: RRef<ThreadMeta>) -> RpcResult<()> {
-        Ok(())
-    }
+    // fn put_thread_in_queue(&self, metadata: RRef<ThreadMeta>) -> RpcResult<()> {
+    //     Ok(())
+    // }
 
-    fn get_next(&self) -> RpcResult<u64> {
-        Ok(1)
+    fn get_next(&self, current: u64, queue: &RRef<ThreadMetaQueuesInner>) -> RpcResult<u64> {
+        let mut q = queue.deref().inner_queue.borrow_mut();
+        for (index, thread_meta) in q.iter_mut().enumerate() {
+            if let Some(thread_meta) = thread_meta {
+                return Ok(thread_meta.id);
+            }
+        }
+        Ok(0)
     }
 }
 

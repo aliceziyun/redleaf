@@ -42,13 +42,13 @@ impl ThreadMetaQueues {
     }
 
     pub fn add_thread(&self, index: u64, meta: ThreadMeta) {
-        let mut inner_queue = self.queue.innerQueue.borrow_mut();
+        let mut inner_queue = self.queue.inner_queue.borrow_mut();
         inner_queue[index as usize] = Some(meta);
     }
 
     // [alice] this seems unsafe
     pub fn get_thread_ref(&self, index: u64) -> *const ThreadMeta {
-        let inner_queue = self.queue.innerQueue.borrow();
+        let inner_queue = self.queue.inner_queue.borrow();
         let meta = inner_queue[index as usize].as_ref().unwrap();
         meta as *const ThreadMeta
     }
@@ -61,13 +61,13 @@ impl ThreadMetaQueues {
 }
 
 pub struct ThreadMetaQueuesInner {
-    innerQueue: RefCell<[Option<ThreadMeta>; 256]>
+    pub inner_queue: RefCell<[Option<ThreadMeta>; 256]>
 }
 
 impl ThreadMetaQueuesInner {
     pub const fn new() -> ThreadMetaQueuesInner {
         ThreadMetaQueuesInner {
-            innerQueue: RefCell::new([
+            inner_queue: RefCell::new([
                 None, None, None, None, None, None, None, None, None, None, None, None, None, None,
                 None, None, None, None, None, None, None, None, None, None, None, None, None, None,
                 None, None, None, None, None, None, None, None, None, None, None, None, None, None,
@@ -100,13 +100,14 @@ impl ThreadMetaQueuesInner {
 
 
 #[interface]
-pub trait Scheduler: Send + Sync{
-    fn set_thread_queue(&self, queue: &RRef<ThreadMetaQueuesInner>) -> RpcResult<()>;
+pub trait Scheduler: Send {
+    // fn set_queue(&self, queue: &RRef<ThreadMetaQueuesInner>) -> RpcResult<()>;
 
     // [alice] for idle thread, we just record id
     fn set_idle_thread(&self, idle: u64) -> RpcResult<()>;
     fn get_idle_thread(&self) -> RpcResult<u64>;
 
-    fn put_thread_in_queue(&self, metadata: RRef<ThreadMeta>) -> RpcResult<()>;
-    fn get_next(&self) -> RpcResult<u64>;
+    // fn put_thread_in_queue(&self, metadata: RRef<ThreadMeta>) -> RpcResult<()>;
+
+    fn get_next(&self, current: u64, queue: &RRef<ThreadMetaQueuesInner>) -> RpcResult<u64>;
 }
