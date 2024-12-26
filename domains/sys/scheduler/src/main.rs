@@ -44,15 +44,15 @@ impl interface::sched::Scheduler for Scheduler {
     //     Ok(())
     // }
 
-    fn get_next(&self, queue: &RRef<ThreadMetaQueuesInner>) -> RpcResult<Option<u64>> {
+    fn get_next(&self, queue: &RRef<ThreadMetaQueuesInner>) -> RpcResult<Option<ThreadMeta>> {
         let mut q = queue.deref().inner_queue.borrow_mut();
 
         // loop and get next runnable thread if exist
         for (index, thread_meta) in q.iter_mut().enumerate() {
-            if let Some(ThreadMeta { id, state, .. }) = thread_meta {
-                match state {
+            if let Some(t) = thread_meta.take() {
+                match t.state {
                     ThreadState::Runnable => {
-                        return Ok(Some(*id));
+                        return Ok(Some(t));
                     }
 
                     _ => {

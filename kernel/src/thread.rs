@@ -62,6 +62,9 @@ static SCHED: RefCell<Scheduler> = RefCell::new(Scheduler::new());
 #[thread_local]
 pub static CURRENT: RefCell<Option<Arc<Mutex<Thread>>>> = RefCell::new(None);
 
+#[thread_local]
+pub static CURRENT_META: Arc<Mutex<Option<ThreadMeta>>> = Arc::new(Mutex::new(None));
+
 // TODO: [alice] move to scheduler
 pub type Link = Option<Arc<Mutex<Thread>>>;
 
@@ -411,12 +414,38 @@ extern "C" fn die(/*func: extern fn()*/) {
     }
 }
 
+fn get_thread(id: &u64) -> Option<Arc<Mutex<Thread>>>{
+    let map = THREAD_MAP.r#try().unwrap();
+    map.get(id).cloned()
+}
+
 fn set_current(t: Arc<Mutex<Thread>>) {
     CURRENT.replace(Some(t));
 }
 
 fn get_current() -> Option<Arc<Mutex<Thread>>> {
     CURRENT.replace(None)
+}
+
+fn set_current_meta(meta: ThreadMeta) {
+    let mut current = CURRENT_META.lock();
+    current.take();
+    *current = Some(meta); 
+}
+
+fn get_current_meta() -> ThreadMeta {
+    let mut current = CURRENT_META.lock();
+    current.take().unwrap()
+}
+
+fn get_current_by_meta() -> Arc<Mutex<Thread>> {
+    let current_id = CURRENT_META.lock().as_ref().unwrap().id;
+    get_thread(&current_id).unwrap()
+}
+
+fn get_current_by_meta_option() -> Option<Arc<Mutex<Thread>>> {
+    let current_id = CURRENT_META.lock().as_ref().unwrap().id;
+    get_thread(&current_id)
 }
 
 /// Return rc into the current thread
@@ -567,12 +596,13 @@ pub fn schedule() {
     // }
 
     let s = SCHEDULER.r#try().unwrap().lock();
-    let map = THREAD_MAP.r#try().unwrap();
     let meta_array = THREAD_META_ARRAY.r#try().unwrap();
-    let next_thread = loop {
-        let next_thread = match s.get_next(meta_array.get_queue_ref()).unwrap() {
+
+    let (next_thread, next_meta) = loop {
+        let next_meta = s.get_next(meta_array.get_queue_ref()).unwrap();
+        let next_thread = match &next_meta {
             Some(t) => {
-                map.get(&t).unwrap()
+                get_thread(&t.id).unwrap()
             },
     
             None => {
@@ -600,7 +630,7 @@ pub fn schedule() {
                         // Current is not runnable, and it was the only
                         // running thread, switch to idle
                         let idle_id = s.get_idle_thread().unwrap();
-                        break map.get(&idle_id).unwrap();
+                        break (get_thread(&idle_id).unwrap(), next_meta);
                     }
                 }
             }
@@ -618,11 +648,54 @@ pub fn schedule() {
             }
         }
 
-        break next_thread;
+        break (next_thread, next_meta);
     };
 
-    // println!("current thread is {}", c.lock().name);
-    // println!("next thread is {}", next_thread.lock().name);
+    let c = match get_current_by_meta_option() {
+        Some(t) => t,
+        None => {
+            return;
+        }
+    };
+
+    println!("current thread is {}", c.lock().name);
+    println!("next thread is {}", next_thread.lock().name);
+    
+    let state = c.lock().state;
+    match state {
+        ThreadState::Idle => {
+            // We don't put idle thread in the thread queue
+            // TODO: set idle thread
+            s.set_idle_thread(c.lock().id);
+        }
+        _ => {
+            // put the old thread back in the scheduling queue
+            meta_array.add_thread(c.lock().id, get_current_meta());
+        }
+    }
+
+    set_current_meta(next_meta.unwrap());
+
+    let prev = unsafe { core::mem::transmute::<*mut Thread, &mut Thread>(&mut *c.lock())};
+    let next =
+        unsafe { core::mem::transmute::<*mut Thread, &mut Thread>(&mut *next_thread.lock())};
+
+    unsafe {
+        // Save current
+        prev.continuation_ptr = CONT_STATE.cur;
+
+        if next.continuation_ptr == (0 as *mut _) {
+            next.continuation_ptr = &next.continuations as *const _ as *mut _;
+        }
+
+        CONT_STATE.cur = next.continuation_ptr;
+        CONT_STATE.start = &next.continuations as *const _ as *mut _;
+        CONT_STATE.end = CONT_STATE.start.offset(MAX_CONT as isize);
+    }
+
+    unsafe {
+        switch(&mut prev.context, &mut next.context);
+    }
 }
 
 // yield is a reserved keyword
