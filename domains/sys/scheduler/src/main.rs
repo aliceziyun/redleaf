@@ -52,6 +52,7 @@ impl interface::sched::Scheduler for Scheduler {
             if let Some(t) = thread_meta.take() {
                 match t.state {
                     ThreadState::Runnable => {
+                        println!("next thread is {}", t.id);
                         return Ok(Some(t));
                     }
 

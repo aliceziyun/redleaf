@@ -55,7 +55,7 @@ const NULL_RETURN_MARKER: usize = 0x0000_0000;
 
 #[thread_local]
 pub static CURRENT_META: RefCell<Option<ThreadMetaGlobal>> = RefCell::new(None);
-pub type ThreadMetaGlobal = Arc<Mutex<Option<ThreadMeta>>>;
+type ThreadMetaGlobal = Arc<Mutex<Option<ThreadMeta>>>;
 
 pub type Link = Option<Arc<Mutex<Thread>>>;
 
@@ -91,7 +91,8 @@ unsafe impl core::marker::Send for Thread {}
 pub static THREAD_META_ARRAY: Once<ThreadMetaQueues> = Once::new();
 
 #[thread_local]
-pub static THREAD_MAP: Once<HashMap<u64, Arc<Mutex<Thread>>>> = Once::new();
+pub static THREAD_MAP: Once<Arc<Mutex<ThreadMap>>> = Once::new();
+type ThreadMap = HashMap<u64, Arc<Mutex<Thread>>>;
 
 pub static SCHEDULER: Once<Arc<Mutex<Box<dyn interface::sched::Scheduler>>>> = Once::new();
 
@@ -269,7 +270,7 @@ extern "C" fn die(/*func: extern fn()*/) {
 }
 
 fn get_thread(id: &u64) -> Option<Arc<Mutex<Thread>>>{
-    let map = THREAD_MAP.r#try().unwrap();
+    let map = THREAD_MAP.r#try().unwrap().lock();
     map.get(id).cloned()
 }
 
@@ -554,6 +555,11 @@ pub extern "C" fn idle() {
 
 pub fn create_thread(name: &str, func: extern "C" fn()) -> Box<PThread> {
     let t = Arc::new(Mutex::new(Thread::new(name, func)));
+    
+    // Add thread to map
+    let mut map = THREAD_MAP.r#try().unwrap().lock();
+    map.insert(t.lock().id.clone(), t.clone());
+
     Box::new(PThread::new(Arc::clone(&t)))
 }
 
@@ -673,7 +679,7 @@ extern "C" fn kernel_thread_init() {
 
 fn init_thread_list() {
     THREAD_META_ARRAY.call_once(|| ThreadMetaQueues::new());
-    THREAD_MAP.call_once(|| HashMap::new());
+    THREAD_MAP.call_once(|| Arc::new(Mutex::new(HashMap::new())));
 }
 
 pub fn init_threads() {
@@ -699,6 +705,10 @@ pub fn init_threads() {
     // Make idle the current thread
     let idle_meta = THREAD_META_ARRAY.r#try().unwrap().get_thread(idle.id.clone());
     set_current(idle_meta);
+
+    // Add idle to thread map
+    let mut map = THREAD_MAP.r#try().unwrap().lock();
+    map.insert(idle.id.clone(), Arc::new(Mutex::new(idle)));
 }
 
 /* ----------------------- unused ------------------------*/
