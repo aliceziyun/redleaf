@@ -53,6 +53,11 @@ impl ThreadMetaQueues {
         meta as *const ThreadMeta
     }
 
+    pub fn get_thread(&self, index: u64) -> ThreadMeta {
+        let mut inner_queue = self.queue.inner_queue.borrow_mut();
+        inner_queue[index as usize].take().unwrap()
+    }
+
     pub fn get_queue_ref<'a>(&'a self) -> &'a RRef<ThreadMetaQueuesInner>{
         // add reference count
         self.queue.borrow();

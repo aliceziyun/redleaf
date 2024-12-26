@@ -53,15 +53,6 @@ static THREAD_ID: AtomicU64 = AtomicU64::new(0);
 
 const NULL_RETURN_MARKER: usize = 0x0000_0000;
 
-/// Per-CPU scheduler
-// TODO: [alice] move to scheduler
-#[thread_local]
-static SCHED: RefCell<Scheduler> = RefCell::new(Scheduler::new());
-
-/// Per-CPU current thread
-#[thread_local]
-pub static CURRENT: RefCell<Option<Arc<Mutex<Thread>>>> = RefCell::new(None);
-
 #[thread_local]
 pub static CURRENT_META: RefCell<Option<ThreadMetaGlobal>> = RefCell::new(None);
 pub type ThreadMetaGlobal = Arc<Mutex<Option<ThreadMeta>>>;
@@ -130,18 +121,6 @@ pub struct Thread {
 
     // HACK
     continuation_ptr: *mut Continuation,
-}
-
-struct SchedulerQueue {
-    highest: Priority,
-    prio_queues: [Link; MAX_PRIO + 1],
-}
-
-pub struct Scheduler {
-    idle: Option<Arc<Mutex<Thread>>>,
-    active: bool,
-    active_queue: SchedulerQueue,
-    passive_queue: SchedulerQueue,
 }
 
 impl Context {
@@ -266,131 +245,6 @@ impl Thread {
     }
 }
 
-impl Scheduler {
-    pub const fn new() -> Scheduler {
-        Scheduler {
-            idle: None,
-            active: true,
-            active_queue: SchedulerQueue::new(),
-            passive_queue: SchedulerQueue::new(),
-        }
-    }
-
-    fn set_idle_thread(&mut self, thread: Arc<Mutex<Thread>>) {
-        trace_sched!("setting idle thread");
-        self.idle = Some(thread);
-    }
-
-    fn get_idle_thread(&mut self) -> Arc<Mutex<Thread>> {
-        if let Some(thread) = self.idle.take() {
-            thread
-        } else {
-            panic!("No idle thread");
-        }
-    }
-
-    pub fn put_thread_in_passive(&mut self, thread: Arc<Mutex<Thread>>) {
-        /* put thread in the currently passive queue */
-        if !self.active {
-            self.active_queue.put_thread(thread)
-        } else {
-            self.passive_queue.put_thread(thread)
-        }
-    }
-
-    fn get_next_active(&mut self) -> Option<Arc<Mutex<Thread>>> {
-        if self.active {
-            //println!("get highest from active");
-            self.active_queue.get_highest()
-        } else {
-            //println!("get highest from passive");
-            self.passive_queue.get_highest()
-        }
-    }
-
-    pub fn get_next(&mut self) -> Option<Arc<Mutex<Thread>>> {
-        loop {
-            let _next_thread = match self.get_next_active() {
-                Some(t) => {
-                    // Skip over non-runnable threads
-                    let state = t.lock().state;
-                    match state {
-                        ThreadState::Runnable => {
-                            return Some(t);
-                        }
-
-                        ThreadState::Rebalanced => {
-                            return Some(t);
-                        }
-                        _ => {
-                            // Thread is not runnable, put it back into the passive queue
-                            // We will look at it again after flipping the queues but
-                            // nontheless exit the loop after that
-                            self.put_thread_in_passive(t);
-                            continue;
-                        }
-                    }
-                }
-                None => {
-                    return None;
-                }
-            };
-        }
-        // Shouldn't reach this point
-        None
-    }
-
-    // Flip active and passive queue making active queue passive
-    pub fn flip_queues(&mut self) {
-        //println!("flip queues");
-        if self.active {
-            self.active = false
-        } else {
-            self.active = true
-        }
-    }
-
-    pub fn next(&mut self) -> Option<Arc<Mutex<Thread>>> {
-        if let Some(t) = self.get_next() {
-            return Some(t);
-        }
-
-        // No luck finding a thread in the active queue
-        // flip active and passive queues and try again
-        self.flip_queues();
-
-        if let Some(t) = self.get_next() {
-            return Some(t);
-        }
-
-        return None;
-    }
-
-    /// Process rebalance queue
-    fn process_rb_queue(&mut self) {
-        let cpu_id = cpuid();
-        println!("process rb queue");
-        loop {
-            if let Some(thread) = rb_pop_thread(cpu_id) {
-                println!("found rb thread: {}", thread.lock().name);
-
-                {
-                    let mut t = thread.lock();
-
-                    t.rebalance = false;
-                    t.state = ThreadState::Runnable;
-                }
-
-                self.put_thread_in_passive(thread);
-                continue;
-            }
-
-            break;
-        }
-        rb_queue_clear_signal(cpu_id);
-    }
-}
-
 /// Just make sure die follows C calling convention
 /// We don't really need it now as we pass the function pointer via r15
 #[no_mangle]
@@ -419,15 +273,7 @@ fn get_thread(id: &u64) -> Option<Arc<Mutex<Thread>>>{
     map.get(id).cloned()
 }
 
-fn set_current(t: Arc<Mutex<Thread>>) {
-    CURRENT.replace(Some(t));
-}
-
-fn get_current() -> Option<Arc<Mutex<Thread>>> {
-    CURRENT.replace(None)
-}
-
-fn set_current_meta(meta: ThreadMeta) {
+fn set_current(meta: ThreadMeta) {
     let mut current = CURRENT_META.borrow_mut();
 
     if let Some(current_meta) = current.as_ref() {
@@ -446,31 +292,20 @@ fn get_current_meta() -> ThreadMeta {
     current.take().unwrap()
 }
 
-fn get_current_by_meta() -> Arc<Mutex<Thread>> {
-    get_current_by_meta_option().unwrap()
+pub fn get_current_ref() -> Arc<Mutex<Thread>> {
+    get_current_ref_option().unwrap()
 }
 
-fn get_current_by_meta_option() -> Option<Arc<Mutex<Thread>>> {
+pub fn get_current_ref_option() -> Option<Arc<Mutex<Thread>>> {
     let current_meta = CURRENT_META.borrow();
     let current = current_meta.as_ref().unwrap().lock();
     let current = current.as_ref().unwrap();
     get_thread(&current.id)
 }
 
-/// Return rc into the current thread
-pub fn get_current_ref() -> Arc<Mutex<Thread>> {
-    let rc_t = CURRENT.borrow().as_ref().unwrap().clone();
-    rc_t
-}
-
-pub fn get_current_ref_option() -> Option<Arc<Mutex<Thread>>> {
-    let rc_t = CURRENT.borrow().as_ref().cloned();
-    rc_t
-}
-
 /// Return domain of the current thread
 pub fn get_domain_of_current() -> Arc<Mutex<Domain>> {
-    let rc_t = CURRENT.borrow().as_ref().unwrap().clone();
+    let rc_t = get_current_ref();
     let arc_d = rc_t.lock().domain.as_ref().unwrap().clone();
 
     arc_d
@@ -660,7 +495,7 @@ pub fn schedule() {
         break (next_thread, next_meta);
     };
 
-    let c = match get_current_by_meta_option() {
+    let c = match get_current_ref_option() {
         Some(t) => t,
         None => {
             return;
@@ -683,7 +518,7 @@ pub fn schedule() {
         }
     }
 
-    set_current_meta(next_meta.unwrap());
+    set_current(next_meta.unwrap());
 
     let prev = unsafe { core::mem::transmute::<*mut Thread, &mut Thread>(&mut *c.lock())};
     let next =
@@ -718,13 +553,8 @@ pub extern "C" fn idle() {
 }
 
 pub fn create_thread(name: &str, func: extern "C" fn()) -> Box<PThread> {
-    let mut s = SCHED.borrow_mut();
-
     let t = Arc::new(Mutex::new(Thread::new(name, func)));
-    let pt = Box::new(PThread::new(Arc::clone(&t)));
-
-    s.put_thread_in_passive(t);
-    return pt;
+    Box::new(PThread::new(Arc::clone(&t)))
 }
 
 pub struct PThread {
@@ -852,25 +682,23 @@ pub fn init_threads() {
     let (dom, sched) = generated_domain_create::create_domain_scheduler();
     SCHEDULER.call_once(|| Arc::new(Mutex::new(sched)));
 
-    let idle = Arc::new(Mutex::new(Thread::new("idle", idle)));
-    {
-        let mut t = idle.lock();
-        t.domain = Some(dom.clone());
-        // t.current_domain_id = dom.domain.lock().id;
-        t.state = ThreadState::Idle;
+    let mut idle = Thread::new("idle", idle);
+    idle.domain = Some(dom.clone());
+    // t.current_domain_id = dom.domain.lock().id;
+    idle.state = ThreadState::Idle;
 
-        t.continuation_ptr = &t.continuations as *const _ as *mut _;
-    }
+    idle.continuation_ptr = &idle.continuations as *const _ as *mut _;
 
-    let mut s = SCHED.borrow_mut();
-    s.set_idle_thread(idle.clone());
+    let s = SCHEDULER.r#try().unwrap().lock();
+    s.set_idle_thread(idle.id.clone());
 
     unsafe {
         asm!("wrgsbase {}", in(reg) (&mut CONT_STATE as *mut ContinuationState));
     }
 
     // Make idle the current thread
-    set_current(idle);
+    let idle_meta = THREAD_META_ARRAY.r#try().unwrap().get_thread(idle.id.clone());
+    set_current(idle_meta);
 }
 
 /* ----------------------- unused ------------------------*/
@@ -1098,68 +926,4 @@ pub unsafe fn push_continuation(cont: &Continuation) {
     dst.r10 = cont.r10;
 
     CONT_STATE.cur = CONT_STATE.cur.offset(1);
-}
-
-impl SchedulerQueue {
-    pub const fn new() -> SchedulerQueue {
-        SchedulerQueue {
-            highest: 0,
-            prio_queues: [
-                None, None, None, None, None, None, None, None, None, None, None, None, None, None,
-                None, None,
-            ],
-        }
-    }
-
-    fn push_thread(&mut self, queue: usize, thread: Arc<Mutex<Thread>>) {
-        let previous_head = self.prio_queues[queue].take();
-
-        if let Some(node) = previous_head {
-            thread.lock().next = Some(node);
-        } else {
-            thread.lock().next = None;
-        }
-
-        self.prio_queues[queue] = Some(thread);
-    }
-
-    pub fn pop_thread(&mut self, queue: usize) -> Option<Arc<Mutex<Thread>>> {
-        let previous_head = self.prio_queues[queue].take();
-
-        if let Some(node) = previous_head {
-            self.prio_queues[queue] = node.lock().next.take();
-            Some(node)
-        } else {
-            None
-        }
-    }
-
-    // Add thread to the queue that matches thread's priority
-    pub fn put_thread(&mut self, thread: Arc<Mutex<Thread>>) {
-        let prio = thread.lock().priority;
-
-        self.push_thread(prio, thread);
-
-        if self.highest < prio {
-            trace_sched!("set highest priority to {}", prio);
-            self.highest = prio
-        }
-    }
-
-    // Try to get the thread with the highest priority
-    pub fn get_highest(&mut self) -> Option<Arc<Mutex<Thread>>> {
-        loop {
-            match self.pop_thread(self.highest) {
-                None => {
-                    if self.highest == 0 {
-                        return None;
-                    }
-                    self.highest -= 1;
-                }
-                Some(t) => {
-                    return Some(t);
-                }
-            }
-        }
-    }
 }

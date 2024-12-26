@@ -152,7 +152,7 @@ impl syscalls::Syscall for PDomain {
         disable_irq();
         let thread_id = {
             // get domain id without locking the current thread
-            let thread_option: &Option<Arc<Mutex<thread::Thread>>> = &thread::CURRENT.borrow();
+            let thread_option: &Option<Arc<Mutex<thread::Thread>>> = &thread::get_current_ref_option();
             let thread_arc: &Arc<Mutex<thread::Thread>> = thread_option.as_ref().unwrap();
             let thread_mutex: &mut Mutex<thread::Thread> = unsafe {
                 &mut *((&**thread_arc) as *const Mutex<thread::Thread>
@@ -168,7 +168,7 @@ impl syscalls::Syscall for PDomain {
         disable_irq();
         let domain_id = {
             // get domain id without locking the current thread
-            let thread_option: &Option<Arc<Mutex<thread::Thread>>> = &thread::CURRENT.borrow();
+            let thread_option: &Option<Arc<Mutex<thread::Thread>>> = &thread::get_current_ref_option();
             let thread_arc: &Arc<Mutex<thread::Thread>> = thread_option.as_ref().unwrap();
             let thread_mutex: &mut Mutex<thread::Thread> = unsafe {
                 &mut *((&**thread_arc) as *const Mutex<thread::Thread>
@@ -187,7 +187,7 @@ impl syscalls::Syscall for PDomain {
         let mut old_domain_id = new_domain_id;
         {
             // swap domain id without locking the current thread
-            let thread_option: &Option<Arc<Mutex<thread::Thread>>> = &thread::CURRENT.borrow();
+            let thread_option: &Option<Arc<Mutex<thread::Thread>>> = &thread::get_current_ref_option();
             let thread_arc: &Arc<Mutex<thread::Thread>> = thread_option.as_ref().unwrap();
             let thread_mutex: &mut Mutex<thread::Thread> = unsafe {
                 &mut *((&**thread_arc) as *const Mutex<thread::Thread>
