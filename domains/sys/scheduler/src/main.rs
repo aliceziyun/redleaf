@@ -6,7 +6,7 @@ extern crate malloc;
 
 use interface::rref::RRef;
 use interface::rpc::RpcResult;
-use interface::sched::{ThreadMetaQueuesInner, ThreadMeta};
+use interface::sched::{ThreadMetaQueuesInner, ThreadMeta, ThreadState};
 use alloc::{boxed::Box, string::String, sync::Arc};
 // use spin::Mutex;
 use console::println;
@@ -15,6 +15,7 @@ use core::ops::Deref;
 
 struct Scheduler {
     idle: Cell<u64>,
+    // current_meta: Cell<ThreadMeta>,
 }
 
 impl Scheduler {
@@ -43,14 +44,27 @@ impl interface::sched::Scheduler for Scheduler {
     //     Ok(())
     // }
 
-    fn get_next(&self, current: u64, queue: &RRef<ThreadMetaQueuesInner>) -> RpcResult<u64> {
+    fn get_next(&self, queue: &RRef<ThreadMetaQueuesInner>) -> RpcResult<Option<u64>> {
         let mut q = queue.deref().inner_queue.borrow_mut();
+
+        // loop and get next runnable thread if exist
         for (index, thread_meta) in q.iter_mut().enumerate() {
-            if let Some(thread_meta) = thread_meta {
-                return Ok(thread_meta.id);
+            if let Some(ThreadMeta { id, state, .. }) = thread_meta {
+                match state {
+                    ThreadState::Runnable => {
+                        return Ok(Some(*id));
+                    }
+
+                    _ => {
+                        continue;
+                    }
+
+                }
+            } else {
+                continue;
             }
         }
-        Ok(0)
+        Ok(None)
     }
 }
 

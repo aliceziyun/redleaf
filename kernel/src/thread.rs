@@ -93,8 +93,11 @@ pub struct Context {
 unsafe impl core::marker::Send for Thread {}
 
 // TODO: [alice] init this later
-pub static THREAD_META_ARRAY: Once<Arc<Mutex<ThreadMetaQueues>>> = Once::new();
-pub static THREAD_MAP: Once<Arc<Mutex<HashMap<u64, Thread>>>> = Once::new();
+#[thread_local]
+pub static THREAD_META_ARRAY: Once<ThreadMetaQueues> = Once::new();
+
+#[thread_local]
+pub static THREAD_MAP: Once<HashMap<u64, Arc<Mutex<Thread>>>> = Once::new();
 
 pub static SCHEDULER: Once<Arc<Mutex<Box<dyn interface::sched::Scheduler>>>> = Once::new();
 
@@ -226,7 +229,7 @@ impl Thread {
             affinity: 0,
             rebalance: false,
         };
-        let mut array = THREAD_META_ARRAY.r#try().unwrap().lock();
+        let mut array = THREAD_META_ARRAY.r#try().unwrap();
         array.add_thread(id.clone(), t_meta);
 
         let mut t = Thread {
@@ -443,27 +446,142 @@ pub fn get_current_pthread() -> Box<PThread> {
 pub fn schedule() {
     println!("schedule");
     
-    let mut s = SCHED.borrow_mut();
+    // let mut s = SCHED.borrow_mut();
 
-    // Process rebalance requests
-    if rb_check_signal(cpuid()) {
-        s.process_rb_queue();
-    }
+    // // Process rebalance requests
+    // if rb_check_signal(cpuid()) {
+    //     s.process_rb_queue();
+    // }
 
+    // let next_thread = loop {
+    //     let next_thread = match s.next() {
+    //         Some(t) => t,
+    //         None => {
+    //             // Check if current is runnable
+    //             // [alice] current might not be initialized
+    //             let c = match get_current_ref_option() {
+    //                 Some(c) => c,
+    //                 None => {
+    //                     return;
+    //                 }
+    //             };
+
+    //             let state = c.lock().state;
+    //             match state {
+    //                 ThreadState::Runnable => {
+    //                     // Current is the only runnable thread, no need to
+    //                     // context switch
+    //                     trace_sched!("[{}] is the only runnable thread", c.lock().name);
+    //                     return;
+    //                 }
+
+    //                 ThreadState::Idle => {
+    //                     // Idle thread is the only runnable thread, no need to
+    //                     // context switch
+    //                     trace_sched!("[{}] is the only runnable thread", c.lock().name);
+    //                     return;
+    //                 }
+    //                 _ => {
+    //                     println!("set idle");
+    //                     // Current is not runnable, and it was the only
+    //                     // running thread, switch to idle
+    //                     break s.get_idle_thread();
+    //                 }
+    //             }
+    //         }
+    //     };
+
+    //     // Need to rebalance this thread, send it to another CPU
+    //     if next_thread.lock().rebalance {
+    //         rebalance_thread(next_thread);
+    //         continue;
+    //     }
+
+    //     {
+    //         let state = next_thread.lock().state;
+
+    //         // The thread is not runnable, put it back into the passive queue
+    //         match state {
+    //             ThreadState::Waiting => {
+    //                 s.put_thread_in_passive(next_thread.clone());
+    //                 continue;
+    //             }
+    //             _ => {}
+    //         }
+    //     }
+
+    //     break next_thread;
+    // };
+
+    // let c = match get_current() {
+    //     Some(t) => t,
+    //     None => {
+    //         return;
+    //     }
+    // };
+
+    // trace_sched!("switch to {}", next_thread.lock().name);
+
+    // println!("current thread is {}", c.lock().name);
+    // println!("next thread is {}", next_thread.lock().name);
+
+    // // Make next thread current
+    // set_current(next_thread.clone());
+
+    // let state = c.lock().state;
+    // match state {
+    //     ThreadState::Idle => {
+    //         // We don't put idle thread in the thread queue
+    //         s.set_idle_thread(c.clone());
+    //     }
+    //     _ => {
+    //         // put the old thread back in the scheduling queue
+    //         s.put_thread_in_passive(c.clone());
+    //     }
+    // }
+
+    // drop(s);
+
+    // let prev = unsafe { core::mem::transmute::<*mut Thread, &mut Thread>(&mut *c.lock()) };
+    // let next =
+    //     unsafe { core::mem::transmute::<*mut Thread, &mut Thread>(&mut *next_thread.lock()) };
+
+    // drop(c);
+    // drop(next_thread);
+
+    // unsafe {
+    //     // Save current
+    //     prev.continuation_ptr = CONT_STATE.cur;
+
+    //     if next.continuation_ptr == (0 as *mut _) {
+    //         next.continuation_ptr = &next.continuations as *const _ as *mut _;
+    //     }
+
+    //     CONT_STATE.cur = next.continuation_ptr;
+    //     CONT_STATE.start = &next.continuations as *const _ as *mut _;
+    //     CONT_STATE.end = CONT_STATE.start.offset(MAX_CONT as isize);
+    // }
+
+    // unsafe {
+    //     switch(&mut prev.context, &mut next.context);
+    // }
+
+    let s = SCHEDULER.r#try().unwrap().lock();
+    let map = THREAD_MAP.r#try().unwrap();
+    let meta_array = THREAD_META_ARRAY.r#try().unwrap();
     let next_thread = loop {
-        let next_thread = match s.next() {
-            Some(t) => t,
+        let next_thread = match s.get_next(meta_array.get_queue_ref()).unwrap() {
+            Some(t) => {
+                map.get(&t).unwrap()
+            },
+    
             None => {
-                // Check if current is runnable
-                // [alice] current might not be initialized
                 let c = match get_current_ref_option() {
                     Some(c) => c,
-                    None => {
-                        return;
-                    }
+                    None => {return;}
                 };
-
                 let state = c.lock().state;
+    
                 match state {
                     ThreadState::Runnable => {
                         // Current is the only runnable thread, no need to
@@ -471,7 +589,7 @@ pub fn schedule() {
                         trace_sched!("[{}] is the only runnable thread", c.lock().name);
                         return;
                     }
-
+    
                     ThreadState::Idle => {
                         // Idle thread is the only runnable thread, no need to
                         // context switch
@@ -479,28 +597,21 @@ pub fn schedule() {
                         return;
                     }
                     _ => {
-                        println!("set idle");
                         // Current is not runnable, and it was the only
                         // running thread, switch to idle
-                        break s.get_idle_thread();
+                        let idle_id = s.get_idle_thread().unwrap();
+                        break map.get(&idle_id).unwrap();
                     }
                 }
             }
         };
 
-        // Need to rebalance this thread, send it to another CPU
-        if next_thread.lock().rebalance {
-            rebalance_thread(next_thread);
-            continue;
-        }
-
         {
             let state = next_thread.lock().state;
 
-            // The thread is not runnable, put it back into the passive queue
+            // The thread is not runnable, skip it
             match state {
                 ThreadState::Waiting => {
-                    s.put_thread_in_passive(next_thread.clone());
                     continue;
                 }
                 _ => {}
@@ -510,58 +621,8 @@ pub fn schedule() {
         break next_thread;
     };
 
-    let c = match get_current() {
-        Some(t) => t,
-        None => {
-            return;
-        }
-    };
-
-    trace_sched!("switch to {}", next_thread.lock().name);
-
-    println!("current thread is {}", c.lock().name);
-    println!("next thread is {}", next_thread.lock().name);
-
-    // Make next thread current
-    set_current(next_thread.clone());
-
-    let state = c.lock().state;
-    match state {
-        ThreadState::Idle => {
-            // We don't put idle thread in the thread queue
-            s.set_idle_thread(c.clone());
-        }
-        _ => {
-            // put the old thread back in the scheduling queue
-            s.put_thread_in_passive(c.clone());
-        }
-    }
-
-    drop(s);
-
-    let prev = unsafe { core::mem::transmute::<*mut Thread, &mut Thread>(&mut *c.lock()) };
-    let next =
-        unsafe { core::mem::transmute::<*mut Thread, &mut Thread>(&mut *next_thread.lock()) };
-
-    drop(c);
-    drop(next_thread);
-
-    unsafe {
-        // Save current
-        prev.continuation_ptr = CONT_STATE.cur;
-
-        if next.continuation_ptr == (0 as *mut _) {
-            next.continuation_ptr = &next.continuations as *const _ as *mut _;
-        }
-
-        CONT_STATE.cur = next.continuation_ptr;
-        CONT_STATE.start = &next.continuations as *const _ as *mut _;
-        CONT_STATE.end = CONT_STATE.start.offset(MAX_CONT as isize);
-    }
-
-    unsafe {
-        switch(&mut prev.context, &mut next.context);
-    }
+    // println!("current thread is {}", c.lock().name);
+    // println!("next thread is {}", next_thread.lock().name);
 }
 
 // yield is a reserved keyword
@@ -698,6 +759,11 @@ extern "C" fn kernel_thread_init() {
     // enable_irq(); 
 }
 
+fn init_thread_list() {
+    THREAD_META_ARRAY.call_once(|| ThreadMetaQueues::new());
+    THREAD_MAP.call_once(|| HashMap::new());
+}
+
 pub fn init_threads() {
     init_thread_list();
 
@@ -723,16 +789,6 @@ pub fn init_threads() {
 
     // Make idle the current thread
     set_current(idle);
-}
-
-fn init_thread_list(){
-    THREAD_META_ARRAY.call_once(|| {
-        Arc::new(Mutex::new(ThreadMetaQueues::new()))
-    });
-
-    THREAD_MAP.call_once(|| {
-        Arc::new(Mutex::new(HashMap::new()))
-    });
 }
 
 /* ----------------------- unused ------------------------*/

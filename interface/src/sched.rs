@@ -109,5 +109,5 @@ pub trait Scheduler: Send {
 
     // fn put_thread_in_queue(&self, metadata: RRef<ThreadMeta>) -> RpcResult<()>;
 
-    fn get_next(&self, current: u64, queue: &RRef<ThreadMetaQueuesInner>) -> RpcResult<u64>;
+    fn get_next(&self, queue: &RRef<ThreadMetaQueuesInner>) -> RpcResult<Option<u64>>;
 }
