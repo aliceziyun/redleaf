@@ -63,9 +63,9 @@ static SCHED: RefCell<Scheduler> = RefCell::new(Scheduler::new());
 pub static CURRENT: RefCell<Option<Arc<Mutex<Thread>>>> = RefCell::new(None);
 
 #[thread_local]
-pub static CURRENT_META: Arc<Mutex<Option<ThreadMeta>>> = Arc::new(Mutex::new(None));
+pub static CURRENT_META: RefCell<Option<ThreadMetaGlobal>> = RefCell::new(None);
+pub type ThreadMetaGlobal = Arc<Mutex<Option<ThreadMeta>>>;
 
-// TODO: [alice] move to scheduler
 pub type Link = Option<Arc<Mutex<Thread>>>;
 
 // AB: Watch out! if you change format of this line
@@ -428,24 +428,33 @@ fn get_current() -> Option<Arc<Mutex<Thread>>> {
 }
 
 fn set_current_meta(meta: ThreadMeta) {
-    let mut current = CURRENT_META.lock();
-    current.take();
-    *current = Some(meta); 
+    let mut current = CURRENT_META.borrow_mut();
+
+    if let Some(current_meta) = current.as_ref() {
+        let mut current = current_meta.lock();
+        current.take();
+        *current = Some(meta);
+    } else {
+        *current = Some(Arc::new(Mutex::new(Some(meta))));
+    }
 }
 
 fn get_current_meta() -> ThreadMeta {
-    let mut current = CURRENT_META.lock();
+    let mut current = CURRENT_META.borrow_mut();
+
+    let mut current = current.as_ref().unwrap().lock(); 
     current.take().unwrap()
 }
 
 fn get_current_by_meta() -> Arc<Mutex<Thread>> {
-    let current_id = CURRENT_META.lock().as_ref().unwrap().id;
-    get_thread(&current_id).unwrap()
+    get_current_by_meta_option().unwrap()
 }
 
 fn get_current_by_meta_option() -> Option<Arc<Mutex<Thread>>> {
-    let current_id = CURRENT_META.lock().as_ref().unwrap().id;
-    get_thread(&current_id)
+    let current_meta = CURRENT_META.borrow();
+    let current = current_meta.as_ref().unwrap().lock();
+    let current = current.as_ref().unwrap();
+    get_thread(&current.id)
 }
 
 /// Return rc into the current thread
