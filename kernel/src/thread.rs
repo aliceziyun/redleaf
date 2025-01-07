@@ -440,9 +440,11 @@ pub fn schedule() {
     //     switch(&mut prev.context, &mut next.context);
     // }
 
+    // 1. Get the reference of scheduler domain
     let s = SCHEDULER.r#try().unwrap().lock();
     let meta_array = THREAD_META_ARRAY.r#try().unwrap();
 
+    // 2. Use `get_next` in scheduler dom to get next runnable thread
     let (next_thread, next_meta) = loop {
         let next_meta = s.get_next(meta_array.get_queue_ref()).unwrap();
         let next_thread = match &next_meta {
@@ -506,6 +508,7 @@ pub fn schedule() {
     println!("current thread is {}", c.lock().name);
     println!("next thread is {}", next_thread.lock().name);
     
+    // 3. Swap next thread with current thread
     let state = c.lock().state;
     match state {
         ThreadState::Idle => {
@@ -521,6 +524,7 @@ pub fn schedule() {
 
     set_current(next_meta.unwrap());
 
+    // 4. Context switch
     let prev = unsafe { core::mem::transmute::<*mut Thread, &mut Thread>(&mut *c.lock())};
     let next =
         unsafe { core::mem::transmute::<*mut Thread, &mut Thread>(&mut *next_thread.lock())};

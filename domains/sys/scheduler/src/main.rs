@@ -62,13 +62,14 @@ impl interface::sched::Scheduler for Scheduler {
         .max_by_key(|&(_, priority)| priority)
         .map(|(index, _)| index);
 
+        // TODO: change the metadata here
         if let Some(index) = highest_priority_index {
             if let Some(t) = q[index].take() {
-                println!("next thread is {} with priority {}", t.id, t.priority);
+                // println!("next thread is {} with priority {}", t.id, t.priority);
                 return Ok(Some(t));
             }
         }
-        
+
         Ok(None)
     }
 }
@@ -80,7 +81,9 @@ pub fn trusted_entry(
     ints: Box<dyn syscalls::Interrupt + Send + Sync>,
 ) -> Box<dyn interface::sched::Scheduler> {
     libsyscalls::syscalls::init(s);
-    interface::rref::init(heap, 12);        // [alice] use a magic number
+
+    // [alice] use a fixed number now. System should reserve number for the scheduler domain
+    interface::rref::init(heap, 12);
 
     let ints_clone = ints.int_clone();
     libsyscalls::syscalls::init_interrupts(ints);
