@@ -47,24 +47,28 @@ impl interface::sched::Scheduler for Scheduler {
     fn get_next(&self, queue: &RRef<ThreadMetaQueuesInner>) -> RpcResult<Option<ThreadMeta>> {
         let mut q = queue.deref().inner_queue.borrow_mut();
 
-        // loop and get next runnable thread if exist
-        for (index, thread_meta) in q.iter_mut().enumerate() {
-            if let Some(t) = thread_meta.take() {
-                match t.state {
-                    ThreadState::Runnable => {
-                        println!("next thread is {}", t.id);
-                        return Ok(Some(t));
-                    }
-
-                    _ => {
-                        continue;
-                    }
-
+        // find thread with hightest prio
+        let highest_priority_thread = q.iter()
+        .enumerate()
+        .filter_map(|(index, thread_meta)| {
+            thread_meta.as_ref().and_then(|t| {
+                if let ThreadState::Runnable = t.state {
+                    Some((index, t.priority))
+                } else {
+                    None
                 }
-            } else {
-                continue;
+            })
+        })
+        .max_by_key(|&(_, priority)| priority)
+        .map(|(index, _)| index);
+
+        if let Some(index) = highest_priority_index {
+            if let Some(t) = q[index].take() {
+                println!("next thread is {} with priority {}", t.id, t.priority);
+                return Ok(Some(t));
             }
         }
+        
         Ok(None)
     }
 }
