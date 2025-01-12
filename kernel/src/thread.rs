@@ -693,7 +693,7 @@ pub fn init_threads() {
     SCHEDULER.call_once(|| Arc::new(Mutex::new(sched)));
 
     let mut idle = Thread::new("idle", idle);
-    idle.domain = Some(dom.clone());
+    // idle.domain = Some(dom.clone());
     // t.current_domain_id = dom.domain.lock().id;
     idle.state = ThreadState::Idle;
 

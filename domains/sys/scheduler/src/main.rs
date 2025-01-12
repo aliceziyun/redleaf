@@ -62,8 +62,8 @@ impl interface::sched::Scheduler for Scheduler {
         .max_by_key(|&(_, priority)| priority)
         .map(|(index, _)| index);
 
-        // TODO: change the metadata here
-        if let Some(index) = highest_priority_index {
+        // TODO: change the metadata here to trigger a bug
+        if let Some(index) = highest_priority_thread {
             if let Some(t) = q[index].take() {
                 // println!("next thread is {} with priority {}", t.id, t.priority);
                 return Ok(Some(t));
