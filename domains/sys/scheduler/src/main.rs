@@ -90,6 +90,8 @@ impl interface::sched::Scheduler for Scheduler {
         let mut t = meta.borrow_mut();
         let id = t.id.clone();
         if (t.last_queued == 0) {
+            // [alice] if panic here, a thread seems to run forever
+            // panic!("metadata leaves incosistent");
             t.last_queued = queue.deref().get_clock();
         }
         drop(t);
