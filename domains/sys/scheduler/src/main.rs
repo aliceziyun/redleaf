@@ -62,15 +62,44 @@ impl interface::sched::Scheduler for Scheduler {
         .max_by_key(|&(_, priority)| priority)
         .map(|(index, _)| index);
 
-        // TODO: change the metadata here to trigger a bug
         if let Some(index) = highest_priority_thread {
-            if let Some(t) = q[index].take() {
-                // println!("next thread is {} with priority {}", t.id, t.priority);
+            if let Some(mut t) = q[index].take() {
+                println!("next thread is {} with priority {}", t.id, t.priority);
+                let mut delta = 0;
+                // [alice] test
+                // if(t.last_queued == 0){
+                //     return Ok(None);
+                // }
+
+                delta = queue.deref().get_clock() - t.last_queued;
+                t.last_queued = 0;
+                t.run_delay += delta;
+
+                // [alice] can't call this function unless I unwrap struct with RefCell
+                // queue.deref().add_run_delay(delta);
+
+                // [alice] if panic here, then a thread will get lost
+                // panic!("lose the thread here");
+
                 return Ok(Some(t));
             }
         }
 
         Ok(None)
+    }
+
+    fn add_thread(&self, queue: &RRef<ThreadMetaQueuesInner>, meta: RefCell<ThreadMeta>) {
+        let mut t = meta.borrow_mut();
+        if t.last_queued == 0 {
+            t.last_queued = queue.deref().get_clock();
+        }
+        let id = t.id.clone();
+        drop(t);
+
+        queue.deref().set_thread(id, RefCell::into_inner(meta));
+
+        // [alice] can't call this function unless I unwrap struct with RefCell
+        // queue.deref().add_run_delay(delta);
     }
 }
 

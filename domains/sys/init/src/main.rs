@@ -182,40 +182,40 @@ pub fn trusted_entry(
 
     // test_dummy_syscall();
 
-    // println!("about to create proxy");
-    // let (_dom_proxy, proxy) = create_proxy.create_domain_proxy(
-    //     create_pci,
-    //     // create_ahci,
-    //     create_membdev,
-    //     create_bdev_shadow,
-    //     create_ixgbe,
-    //     create_virtio_net,
-    //     create_virtio_block,
-    //     create_nvme,
-    //     create_net_shadow,
-    //     create_nvme_shadow,
-    //     // create_benchnet,
-    //     create_benchnvme,
-    //     create_xv6fs,
-    //     create_xv6net,
-    //     create_xv6net_shadow,
-    //     create_xv6usr,
-    //     create_xv6,
-    //     create_dom_c,
-    //     create_dom_d,
-    //     create_dom_e,
-    //     create_shadow,
-    //     create_tpm,
-    // );
+    println!("about to create proxy");
+    let (_dom_proxy, proxy) = create_proxy.create_domain_proxy(
+        create_pci,
+        // create_ahci,
+        create_membdev,
+        create_bdev_shadow,
+        create_ixgbe,
+        create_virtio_net,
+        create_virtio_block,
+        create_nvme,
+        create_net_shadow,
+        create_nvme_shadow,
+        // create_benchnet,
+        create_benchnvme,
+        create_xv6fs,
+        create_xv6net,
+        create_xv6net_shadow,
+        create_xv6usr,
+        create_xv6,
+        create_dom_c,
+        create_dom_d,
+        create_dom_e,
+        create_shadow,
+        create_tpm,
+    );
 
-    // println!("Start test_cde!");
-    // let (dom_dom_c, dom_c) = proxy.as_domain_create_CreateDomC().create_domain_dom_c();
-    // let dom_dom_d = proxy
-    //     .as_domain_create_CreateDomD()
-    //     .create_domain_dom_d(&dom_c);
-    // let dom_dom_e = proxy
-    //     .as_domain_create_CreateDomE()
-    //     .create_domain_dom_e(&dom_c);
+    println!("Start test_cde!");
+    let (dom_dom_c, dom_c) = proxy.as_domain_create_CreateDomC().create_domain_dom_c();
+    let dom_dom_d = proxy
+        .as_domain_create_CreateDomD()
+        .create_domain_dom_d(&dom_c);
+    let dom_dom_e = proxy
+        .as_domain_create_CreateDomE()
+        .create_domain_dom_e(&dom_c);
 
     // we don't need the rest part in im test
 

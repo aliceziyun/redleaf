@@ -472,7 +472,7 @@ extern "C" fn do_IRQ(pt_regs: &mut PtRegs) -> u64 {
 
 // IRQ 0: Timer
 fn timer_interrupt_handler(#[allow(unused_variables)] pt_regs: &mut PtRegs) {
-    if rflags::read().contains(rflags::RFlags::INTERRUPT_FLAG) == true {    
+    if rflags::read().contains(rflags::RFlags::INTERRUPT_FLAG) == true {
         crate::waitqueue::signal_interrupt_threads(32);
         crate::thread::schedule();
     }

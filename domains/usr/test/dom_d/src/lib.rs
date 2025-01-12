@@ -39,7 +39,7 @@ pub fn main(dom_c: &Box<dyn interface::dom_c::DomC>) {
     // do modification here
     let mut inner_val = inner_val.borrow_mut();
     inner_val.0 += 10;
-    panic!("panic test");
+    // panic!("panic test");
     inner_val.1 -= 10;
 
 

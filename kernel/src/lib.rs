@@ -396,7 +396,7 @@ pub extern "C" fn rust_main_ap() -> ! {
     RUNNING_CPUS.fetch_add(1, Ordering::SeqCst);
 
     // Enable interrupts; the timer interrupt will schedule the next thread
-    enable_irq();
+    // enable_irq();
 
     start_init_thread();
 

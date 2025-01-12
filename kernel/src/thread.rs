@@ -211,6 +211,9 @@ impl Thread {
             priority: 0,
             affinity: 0,
             rebalance: false,
+
+            last_queued: 0,
+            run_delay: 0,
         };
         let mut array = THREAD_META_ARRAY.r#try().unwrap();
         array.add_thread(id.clone(), t_meta);
@@ -483,6 +486,8 @@ pub fn schedule() {
             }
         };
 
+        println!("here");
+
         {
             let state = next_thread.lock().state;
 
@@ -518,7 +523,7 @@ pub fn schedule() {
         }
         _ => {
             // put the old thread back in the scheduling queue
-            meta_array.add_thread(c.lock().id, get_current_meta());
+            s.add_thread(meta_array.get_queue_ref(), RefCell::new(get_current_meta()));
         }
     }
 

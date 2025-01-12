@@ -27,6 +27,9 @@ pub struct ThreadMeta {
     pub priority: Priority,
     pub affinity: u64,
     pub rebalance: bool,
+
+    pub last_queued: u64,
+    pub run_delay: u64,
 }
 
 // [alice] it might better to try RRefDeque, and we use brute method to do priority scheduling
@@ -42,8 +45,9 @@ impl ThreadMetaQueues {
     }
 
     pub fn add_thread(&self, index: u64, meta: ThreadMeta) {
-        let mut inner_queue = self.queue.inner_queue.borrow_mut();
-        inner_queue[index as usize] = Some(meta);
+        self.queue.set_thread(index, meta);
+        // let mut inner_queue = self.queue.inner_queue.borrow();
+        // inner_queue[index as usize] = Some(meta);
     }
 
     // [alice] this seems unsafe
@@ -66,7 +70,9 @@ impl ThreadMetaQueues {
 }
 
 pub struct ThreadMetaQueuesInner {
-    pub inner_queue: RefCell<[Option<ThreadMeta>; 256]>
+    pub inner_queue: RefCell<[Option<ThreadMeta>; 256]>,
+    clock: u64,     // the running queue clock
+    run_delay: u64,
 }
 
 impl ThreadMetaQueuesInner {
@@ -93,7 +99,22 @@ impl ThreadMetaQueuesInner {
                 None, None, None, None, None, None, None, None, None, None, None, None, None, None,
                 None, None, None, None,
             ]),
+            clock: 12,      // set non zero number
+            run_delay: 0,
         }
+    }
+
+    pub fn set_thread(&self, index: u64, meta: ThreadMeta) {
+        let mut q = self.inner_queue.borrow_mut();
+        q[index as usize] = Some(meta);
+    }
+
+    pub fn get_clock(&self) -> u64 {
+        self.clock
+    }
+
+    pub fn add_run_delay(&mut self, run_delay: u64) {
+        self.run_delay += run_delay;
     }
 }
 
@@ -110,4 +131,5 @@ pub trait Scheduler: Send {
     fn get_idle_thread(&self) -> RpcResult<u64>;
 
     fn get_next(&self, queue: &RRef<ThreadMetaQueuesInner>) -> RpcResult<Option<ThreadMeta>>;
+    fn add_thread(&self, queue: &RRef<ThreadMetaQueuesInner>, meta: RefCell<ThreadMeta>);
 }
