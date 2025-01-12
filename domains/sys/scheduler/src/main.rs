@@ -64,18 +64,16 @@ impl interface::sched::Scheduler for Scheduler {
 
         if let Some(index) = highest_priority_thread {
             if let Some(mut t) = q[index].take() {
-                println!("next thread is {} with priority {}", t.id, t.priority);
+                // println!("next thread is {} with priority {} with last_queued {}", t.id, t.priority, t.last_queued);
                 let mut delta = 0;
-                // [alice] test
-                // if(t.last_queued == 0){
-                //     return Ok(None);
-                // }
-
+                if(t.last_queued == 0){
+                    return Ok(None);
+                }
                 delta = queue.deref().get_clock() - t.last_queued;
                 t.last_queued = 0;
                 t.run_delay += delta;
 
-                // [alice] can't call this function unless I unwrap struct with RefCell
+                // [alice] can't change queue as it's immutable, fixing...
                 // queue.deref().add_run_delay(delta);
 
                 // [alice] if panic here, then a thread will get lost
@@ -90,15 +88,14 @@ impl interface::sched::Scheduler for Scheduler {
 
     fn add_thread(&self, queue: &RRef<ThreadMetaQueuesInner>, meta: RefCell<ThreadMeta>) {
         let mut t = meta.borrow_mut();
-        if t.last_queued == 0 {
+        let id = t.id.clone();
+        if (t.last_queued == 0) {
             t.last_queued = queue.deref().get_clock();
         }
-        let id = t.id.clone();
         drop(t);
 
         queue.deref().set_thread(id, RefCell::into_inner(meta));
 
-        // [alice] can't call this function unless I unwrap struct with RefCell
         // queue.deref().add_run_delay(delta);
     }
 }

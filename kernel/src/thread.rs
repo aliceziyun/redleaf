@@ -212,9 +212,10 @@ impl Thread {
             affinity: 0,
             rebalance: false,
 
-            last_queued: 0,
+            last_queued: 11,    // represent current time
             run_delay: 0,
         };
+
         let mut array = THREAD_META_ARRAY.r#try().unwrap();
         array.add_thread(id.clone(), t_meta);
 

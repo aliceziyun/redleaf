@@ -192,11 +192,11 @@ extern "C" fn init_user() {
     enable_irq();
 }
 
-extern "C" fn init_scheduler() {
-    disable_irq();
-    generated_domain_create::create_domain_scheduler();
-    enable_irq();
-}
+// extern "C" fn init_scheduler() {
+//     disable_irq();
+//     generated_domain_create::create_domain_scheduler();
+//     enable_irq();
+// }
 
 fn start_init_thread() {
     crate::thread::create_thread("init", init_user);
